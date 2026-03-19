@@ -1,0 +1,26 @@
+[package]
+name = "ib-hook"
+version = "0.1.0"
+edition = "2024"
+description = "Windows binary and system hooking library."
+keywords = ["hooking", "detours", "windows", "shell"]
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+tracing = "0.1"
+windows = { version = "0.62", features = [
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[package.metadata.docs.rs]
+targets = ["x86_64-pc-windows-msvc"]
+all-features = true
+# To test this locally, run:
+# ```
+# RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+# $env:RUSTDOCFLAGS="--cfg docsrs"; cargo +nightly doc --all-features
+# ```
+rustdoc-args = ["--cfg", "docsrs"]

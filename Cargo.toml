@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "ib-hook",
+]
+resolver = "3"
+
+[workspace.package]
+repository = "https://github.com/Chaoses-Ib/ib-hook"
+license = "MIT"
