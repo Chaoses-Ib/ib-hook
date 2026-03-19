@@ -1,10 +1,7 @@
-# ib-hook
-Rust/C hooking (dynamic binary instrumentation) libraries, mainly for Windows.
-
-## [ib-dll-hijack-c](ib-dll-hijack-c/README.md)
+# IbDllHijackLib
 A C library for Windows DLL hijacking.
 
-Usage:
+## Usage
 ```cpp
 // Export functions of version.dll (by export forwarding)
 #include <IbDllHijack/dlls/version.h>
@@ -26,7 +23,15 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 }
 ```
 
-You can use the [generator](ib-dll-hijack-c/generator/README.md) to generate header files for any DLL.
+You can use the [generator](generator/README.md) to generate header files for any DLL.
+
+## Build the test
+```cmd
+vcpkg install boost-test
+mkdir build
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE="C:\...\vcpkg\scripts\buildsystems\vcpkg.cmake"
+```
 
 ## Projects using this library
 * [IbDOpusExt](https://github.com/Chaoses-Ib/IbDOpusExt)
