@@ -9,6 +9,7 @@ use windows::{
     core::PCWSTR,
 };
 
+pub mod process;
 pub mod shell;
 
 /// Get the handle of the current executable or DLL.

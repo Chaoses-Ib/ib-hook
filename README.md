@@ -1,9 +1,10 @@
 # ib-hook
 Windows binary and system hooking Rust/C libraries.
 
-Supported hooks:
-- [Windows DLL hijacking](#ib-dll-hijack-c)
+## Features
 - [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell)
+- [GUI process watcher](#gui-process-watcher)
+- [DLL hijacking](#ib-dll-hijack-c)
 
 ## [ib-hook](ib-hook/README.md)
 [![crates.io](https://img.shields.io/crates/v/ib-hook.svg)](https://crates.io/crates/ib-hook)
@@ -32,6 +33,18 @@ use ib_hook::windows::shell::{ShellHook, ShellHookMessage};
 // Shell hook unregistered
 ```
 See also [ib-shell: Some desktop environment libraries, mainly for Windows Shell.](https://github.com/Chaoses-Ib/ib-shell)
+
+### GUI process watcher
+```rust
+use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
+
+let watcher = GuiProcessWatcher::new(Box::new(|event| {
+    println!("Process event: {event:?}");
+})).unwrap();
+
+println!("Monitoring GUI processes...");
+std::thread::sleep(std::time::Duration::from_secs(60));
+```
 
 ## [ib-dll-hijack-c](ib-dll-hijack-c/README.md)
 A C library for Windows DLL hijacking.

@@ -1,0 +1,264 @@
+use std::{collections::HashMap, time::SystemTime};
+
+use bon::bon;
+
+use crate::windows::{
+    process::Pid,
+    shell::{ShellHook, ShellHookMessage},
+};
+
+/// Callback for GUI process events
+pub trait GuiProcessCallback: FnMut(GuiProcessEvent) + Send + 'static {}
+
+impl<T: FnMut(GuiProcessEvent) + Send + 'static> GuiProcessCallback for T {}
+
+/// Event types for GUI process monitoring.
+///
+/// These events are triggered by shell hook messages that indicate GUI process
+/// activity.
+///
+/// - For a process started after the watcher, [`CreateOrAlive`](Self::CreateOrAlive) must occur before
+///   [`Alive`](Self::Alive) with the same PID.
+#[derive(Debug, Clone, Copy)]
+pub enum GuiProcessEvent {
+    /// A new GUI process has been created, or an existing process is detected.
+    CreateOrAlive(Pid),
+
+    /// An existing GUI process is detected.
+    Alive(Pid),
+}
+
+impl GuiProcessEvent {
+    pub fn pid(&self) -> Pid {
+        match self {
+            GuiProcessEvent::CreateOrAlive(pid) => *pid,
+            GuiProcessEvent::Alive(pid) => *pid,
+        }
+    }
+}
+
+/**
+Monitors GUI processes, using the Windows shell Hook API.
+
+## Examples
+```no_run
+use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
+
+let watcher = GuiProcessWatcher::new(Box::new(|event| {
+    println!("Process event: {event:?}");
+})).unwrap();
+
+println!("Monitoring GUI processes...");
+std::thread::sleep(std::time::Duration::from_secs(60));
+```
+*/
+pub struct GuiProcessWatcher {
+    _shell: ShellHook,
+}
+
+#[bon]
+impl GuiProcessWatcher {
+    /// Creates a new GUI process watcher with the given callback.
+    ///
+    /// The callback will be called for each process event (window creation,
+    /// activation, rude activation, and replacement).
+    pub fn new(mut callback: impl GuiProcessCallback) -> windows::core::Result<Self> {
+        let shell_callback = move |msg: ShellHookMessage| {
+            match msg {
+                ShellHookMessage::WindowCreated(hwnd) => {
+                    if let Ok(pid) = hwnd.try_into() {
+                        callback(GuiProcessEvent::CreateOrAlive(pid));
+                    }
+                }
+                ShellHookMessage::WindowActivated(hwnd)
+                | ShellHookMessage::RudeAppActivated(hwnd)
+                | ShellHookMessage::WindowReplacing(hwnd) => {
+                    if let Ok(pid) = hwnd.try_into() {
+                        callback(GuiProcessEvent::Alive(pid));
+                    }
+                }
+                _ => {}
+            }
+            false
+        };
+        let shell = ShellHook::new(Box::new(shell_callback))?;
+        Ok(GuiProcessWatcher { _shell: shell })
+    }
+
+    /// Creates a new GUI process watcher with a deduplication buffer.
+    ///
+    /// This version deduplicates process events to avoid duplicate notifications
+    /// when multiple windows are created by the same process.
+    pub fn with_dedup(callback: impl GuiProcessCallback) -> windows::core::Result<Self> {
+        Self::with_filter_dedup(callback).filter(|_| true).build()
+    }
+
+    /// Creates a new GUI process watcher with a deduplication buffer and filters
+    /// to reduce syscalls.
+    ///
+    /// This version deduplicates process events to avoid duplicate notifications
+    /// when multiple windows are created by the same process.
+    #[builder(finish_fn = build)]
+    pub fn with_filter_dedup(
+        #[builder(start_fn)] mut callback: impl GuiProcessCallback,
+        #[builder(default)] create_only: bool,
+        mut filter: impl FnMut(GuiProcessEvent) -> bool + Send + 'static,
+        start_time_filter: Option<SystemTime>,
+    ) -> windows::core::Result<Self> {
+        // To deal with PID conflict
+        let mut dedup = HashMap::new();
+        /*
+        let shell_callback = move |msg: ShellHookMessage| {
+            match msg {
+                ShellHookMessage::WindowCreated(hwnd)
+                | ShellHookMessage::WindowActivated(hwnd)
+                | ShellHookMessage::RudeAppActivated(hwnd)
+                | ShellHookMessage::WindowReplacing(hwnd) => {
+                    if let Ok((pid, tid)) = Pid::from_hwnd_with_thread(hwnd) {
+                        debug!(%pid, tid);
+                        if filter(GuiProcessEvent::Alive(pid)) {
+                            dedup
+                                .entry(pid)
+                                .and_modify(|old_tid| {
+                                    if *old_tid != tid {
+                                        match Pid::from_tid(*old_tid) {
+                                            // The same process with new GUI thread
+                                            Ok(new_pid) if new_pid == pid => (),
+                                            // New thread with the same TID from new process
+                                            Ok(_) => {
+                                                ()
+                                            }
+                                            // Old thread died
+                                            Err(_) => {
+                                                // callback(GuiProcessEvent::Alive(pid));
+                                                // *old_tid = tid;
+                                                ()
+                                            }
+                                        }
+                                    }
+                                })
+                                .or_insert_with(|| {
+                                    callback(GuiProcessEvent::Alive(pid));
+                                    tid
+                                });
+                        }
+                    }
+                }
+                _ => (),
+            }
+            false
+        };
+        let shell = ShellHook::new(Box::new(shell_callback))?;
+        Ok(GuiProcessWatcher { _shell: shell })
+        */
+
+        Self::new(move |event: GuiProcessEvent| {
+            if (!create_only || matches!(event, GuiProcessEvent::CreateOrAlive(_))) && filter(event)
+            {
+                let pid = event.pid();
+                // We need start_time to deal with PID conflict
+                let start_time = pid.get_start_time_or_max();
+                if start_time_filter.is_none_or(|f| start_time >= f) {
+                    dedup
+                        .entry(pid)
+                        .and_modify(|old_start_time| {
+                            if *old_start_time != start_time {
+                                callback(event);
+                                *old_start_time = start_time;
+                            }
+                        })
+                        .or_insert_with(|| {
+                            callback(event);
+                            start_time
+                        });
+                }
+            }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{
+        sync::atomic::{AtomicUsize, Ordering},
+        thread,
+        time::Duration,
+    };
+
+    fn test_gui_process_watcher(d: Duration) {
+        println!("Testing GuiProcessWatcher - open/close some apps to see events");
+
+        let count = std::sync::Arc::new(AtomicUsize::new(0));
+
+        // Clone the Arc before moving into the closure
+        let count_result = count.clone();
+
+        let watcher = GuiProcessWatcher::new(Box::new(move |event: GuiProcessEvent| {
+            println!("Process event: {event:?}");
+            let pid = event.pid();
+            let count = count.fetch_add(1, Ordering::SeqCst);
+            println!("[{}] Process alive: {}", count + 1, pid);
+        }))
+        .expect("Failed to create GUI process watcher");
+
+        println!("GUI process watcher registered");
+        println!("Test will complete in {d:?} seconds...\n");
+
+        // Keep the watcher alive for a bit to receive events
+        thread::sleep(d);
+
+        // Drop watcher explicitly to demonstrate cleanup
+        drop(watcher);
+        println!("\nGUI process watcher destroyed.");
+        println!("Total events: {}", count_result.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn gui_process_watcher() {
+        test_gui_process_watcher(Duration::from_secs(1))
+    }
+
+    #[ignore]
+    #[test]
+    fn gui_process_watcher_manual() {
+        test_gui_process_watcher(Duration::from_secs(30))
+    }
+
+    fn test_gui_process_watcher_dedup(d: Duration) {
+        println!("\nTesting GuiProcessWatcher with dedup - open/close some apps");
+
+        let count = std::sync::Arc::new(AtomicUsize::new(0));
+
+        // Clone the Arc before moving into the closure
+        let count_result = count.clone();
+
+        let watcher = GuiProcessWatcher::with_dedup(Box::new(move |event: GuiProcessEvent| {
+            println!("Process event: {event:?}");
+            let pid = event.pid();
+            let count = count.fetch_add(1, Ordering::SeqCst);
+            println!("[{}] Process alive (dedup): {}", count + 1, pid);
+        }))
+        .expect("Failed to create GUI process watcher with dedup");
+
+        println!("GUI process watcher with dedup registered");
+        println!("Test will complete in {d:?} seconds...\n");
+
+        thread::sleep(d);
+        drop(watcher);
+        println!("Total events: {}", count_result.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn gui_process_watcher_dedup() {
+        test_gui_process_watcher_dedup(Duration::from_secs(1));
+    }
+
+    #[ignore]
+    #[test_log::test]
+    #[test_log(default_log_filter = "trace")]
+    fn gui_process_watcher_dedup_manual() {
+        test_gui_process_watcher_dedup(Duration::from_secs(60));
+    }
+}

@@ -60,7 +60,7 @@ pub const HSHELL_FLASH: u32 = HSHELL_REDRAW | HSHELL_HIGHBIT;
 
 /// The return value should be `false` unless the message is [`ShellHookMessage::AppCommand`]
 /// and the callback handles the [`WM_COMMAND`] message. In this case, the return should be `true`.
-pub type ShellHookCallback = dyn Fn(ShellHookMessage) -> bool + Send + 'static;
+pub type ShellHookCallback = dyn FnMut(ShellHookMessage) -> bool + Send + 'static;
 
 /// Shell hook message variants.
 ///
@@ -198,7 +198,7 @@ pub struct ShellHook {
 }
 
 impl ShellHook {
-    pub fn new(callback: Box<ShellHookCallback>) -> Result<Self, String> {
+    pub fn new(callback: Box<ShellHookCallback>) -> windows::core::Result<Self> {
         let hwnd = OnceLock::new();
 
         // Start the message loop in a separate thread
@@ -317,7 +317,7 @@ unsafe extern "system" fn window_proc(
     if msg == shell_hook_msg() {
         let callback = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) };
         if callback != 0 {
-            let callback = unsafe { &*(callback as *const Box<ShellHookCallback>) };
+            let callback = unsafe { &mut *(callback as *mut Box<ShellHookCallback>) };
             let r = callback(ShellHookMessage::from((wparam, lparam)));
             return LRESULT(r as _);
         }
