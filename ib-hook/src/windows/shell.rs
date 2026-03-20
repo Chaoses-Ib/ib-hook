@@ -199,6 +199,13 @@ pub struct ShellHook {
 
 impl ShellHook {
     pub fn new(callback: Box<ShellHookCallback>) -> windows::core::Result<Self> {
+        Self::with_on_hooked(callback, |_| ())
+    }
+
+    pub fn with_on_hooked(
+        mut callback: Box<ShellHookCallback>,
+        on_hooked: impl FnOnce(&mut ShellHookCallback) + Send + 'static,
+    ) -> windows::core::Result<Self> {
         let hwnd = OnceLock::new();
 
         // Start the message loop in a separate thread
@@ -250,6 +257,7 @@ impl ShellHook {
                 let _ = hwnd_store.set(hwnd.0 as usize);
 
                 // Set callback in window user data
+                let callback_ref = callback.as_mut() as *mut _;
                 let callback_ptr = Box::into_raw(Box::new(callback)) as isize;
                 unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, callback_ptr) };
 
@@ -259,6 +267,9 @@ impl ShellHook {
                 }
 
                 debug!("Shell hook window created: {:?}", hwnd);
+
+                // SAFETY: Callback will only be called in DispatchMessageW()
+                on_hooked(unsafe { &mut *callback_ref });
 
                 // Run the message loop
                 let mut msg = MSG::default();

@@ -1,3 +1,5 @@
+#[cfg(feature = "sysinfo")]
+use std::path::Path;
 use std::{collections::HashMap, time::SystemTime};
 
 use bon::bon;
@@ -62,7 +64,14 @@ impl GuiProcessWatcher {
     ///
     /// The callback will be called for each process event (window creation,
     /// activation, rude activation, and replacement).
-    pub fn new(mut callback: impl GuiProcessCallback) -> windows::core::Result<Self> {
+    pub fn new(callback: impl GuiProcessCallback) -> windows::core::Result<Self> {
+        Self::with_on_hooked(callback, || ())
+    }
+
+    pub fn with_on_hooked(
+        mut callback: impl GuiProcessCallback,
+        on_hooked: impl FnOnce() + Send + 'static,
+    ) -> windows::core::Result<Self> {
         let shell_callback = move |msg: ShellHookMessage| {
             match msg {
                 ShellHookMessage::WindowCreated(hwnd) => {
@@ -81,7 +90,7 @@ impl GuiProcessWatcher {
             }
             false
         };
-        let shell = ShellHook::new(Box::new(shell_callback))?;
+        let shell = ShellHook::with_on_hooked(Box::new(shell_callback), |_| on_hooked())?;
         Ok(GuiProcessWatcher { _shell: shell })
     }
 
@@ -104,9 +113,19 @@ impl GuiProcessWatcher {
         #[builder(default)] create_only: bool,
         mut filter: impl FnMut(GuiProcessEvent) -> bool + Send + 'static,
         start_time_filter: Option<SystemTime>,
+        /// Call `callback` with every process and skip them afterwards.
+        existing_processes: Option<HashMap<Pid, SystemTime>>,
     ) -> windows::core::Result<Self> {
         // To deal with PID conflict
-        let mut dedup = HashMap::new();
+        let mut dedup = match existing_processes {
+            Some(processes) => {
+                processes
+                    .keys()
+                    .for_each(|&pid| callback(GuiProcessEvent::CreateOrAlive(pid)));
+                processes
+            }
+            None => Default::default(),
+        };
         /*
         let shell_callback = move |msg: ShellHookMessage| {
             match msg {
@@ -152,7 +171,7 @@ impl GuiProcessWatcher {
         Ok(GuiProcessWatcher { _shell: shell })
         */
 
-        Self::new(move |event: GuiProcessEvent| {
+        let callback = move |event: GuiProcessEvent| {
             if (!create_only || matches!(event, GuiProcessEvent::CreateOrAlive(_))) && filter(event)
             {
                 let pid = event.pid();
@@ -173,7 +192,76 @@ impl GuiProcessWatcher {
                         });
                 }
             }
+        };
+        Self::new(callback)
+    }
+}
+
+#[cfg(feature = "sysinfo")]
+#[bon]
+impl GuiProcessWatcher {
+    /**
+    Apply a function on every existing and new GUI process exactly once.
+
+    Race condition / TOCTOU is handled in this function, although not perfect.
+    (Processes created after `start_time` before hooked will be lost,
+    but they can still be detected if they create new windows (and activate windows if `create_only` is `false`)
+    in the future, which is likely to happen.)
+
+    ## Examples
+    ```no_run
+    use ib_hook::windows::process::GuiProcessWatcher;
+
+    let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
+        .filter_image_path(|path| {
+            path.and_then(|p| p.file_name())
+                .is_some_and(|n| n.to_ascii_lowercase() == "notepad.exe")
         })
+        .build();
+    std::thread::sleep(std::time::Duration::from_secs(60));
+    ```
+    */
+    #[builder(finish_fn = build)]
+    pub fn for_each(
+        #[builder(start_fn)] mut f: impl FnMut(Pid) + Send + 'static,
+        mut filter_image_path: impl FnMut(Option<&Path>) -> bool + Send + 'static,
+        /// Mitigate TOCTOU issue further at the cost of some system performance.
+        #[builder(default = true)]
+        create_only: bool,
+    ) -> windows::core::Result<Self> {
+        let start_time = SystemTime::now();
+
+        // TODO: Filter GUI processes?
+        // TODO: Avoid using sysinfo for this
+        let mut system = sysinfo::System::new();
+        system.refresh_processes_specifics(
+            sysinfo::ProcessesToUpdate::All,
+            true,
+            sysinfo::ProcessRefreshKind::nothing().with_exe(sysinfo::UpdateKind::Always),
+        );
+        let processes = system
+            .processes()
+            .values()
+            .filter(|process| filter_image_path(process.exe()))
+            .map(|process| process.pid().into())
+            .map(|pid: Pid| (pid, pid.get_start_time_or_max()))
+            .collect();
+
+        let watcher = {
+            Self::with_filter_dedup(move |event| {
+                let pid = event.pid();
+                if filter_image_path(pid.image_path().as_deref()) {
+                    f(pid)
+                }
+            })
+            .create_only(create_only)
+            .filter(|_| true)
+            .start_time_filter(start_time)
+            .existing_processes(processes)
+            .build()?
+        };
+
+        Ok(watcher)
     }
 }
 
@@ -260,5 +348,26 @@ mod tests {
     #[test_log(default_log_filter = "trace")]
     fn gui_process_watcher_dedup_manual() {
         test_gui_process_watcher_dedup(Duration::from_secs(60));
+    }
+
+    fn test_for_each(d: Duration) {
+        let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
+            .filter_image_path(|path| {
+                path.and_then(|p| p.file_name())
+                    .is_some_and(|n| n.to_ascii_lowercase() == "notepad.exe")
+            })
+            .build();
+        thread::sleep(d);
+    }
+
+    #[test]
+    fn for_each() {
+        test_for_each(Duration::from_secs(1));
+    }
+
+    #[ignore]
+    #[test]
+    fn for_each_manual() {
+        test_for_each(Duration::from_secs(60));
     }
 }

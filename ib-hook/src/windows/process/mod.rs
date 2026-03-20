@@ -108,6 +108,13 @@ impl Pid {
 }
 
 #[cfg(feature = "sysinfo")]
+impl From<sysinfo::Pid> for Pid {
+    fn from(pid: sysinfo::Pid) -> Self {
+        Self(pid.as_u32())
+    }
+}
+
+#[cfg(feature = "sysinfo")]
 impl Into<sysinfo::Pid> for Pid {
     fn into(self) -> sysinfo::Pid {
         sysinfo::Pid::from_u32(self.0)

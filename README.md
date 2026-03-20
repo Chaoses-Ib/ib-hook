@@ -46,6 +46,19 @@ println!("Monitoring GUI processes...");
 std::thread::sleep(std::time::Duration::from_secs(60));
 ```
 
+Apply a function on every existing and new GUI process exactly once:
+```rust
+use ib_hook::windows::process::GuiProcessWatcher;
+
+let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
+    .filter_image_path(|path| {
+        path.and_then(|p| p.file_name())
+            .is_some_and(|n| n.to_ascii_lowercase() == "notepad.exe")
+    })
+    .build();
+std::thread::sleep(std::time::Duration::from_secs(60));
+```
+
 ## [ib-dll-hijack-c](ib-dll-hijack-c/README.md)
 A C library for Windows DLL hijacking.
 
