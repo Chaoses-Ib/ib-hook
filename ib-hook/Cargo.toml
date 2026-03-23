@@ -11,11 +11,19 @@ license.workspace = true
 [features]
 sysinfo = ["dep:sysinfo"]
 
+inject-dll = [
+    "dep:dll-syringe",
+    "dep:serde",
+]
+
 [dependencies]
 bon = "3"
 derive_more = { version = "2", features = ["display"] }
+dll-syringe = { version = "0.17", optional = true, features = ["payload-utils", "rpc-core"] }
 nt-time = { version = "0.15", default-features = false, features = ["std"] }
+serde = { version = "1", optional = true, features = ["derive"] }
 sysinfo = { version = ">=0.34,<0.39", optional = true, default-features = false, features = ["system"] }
+thiserror = "2"
 tracing = "0.1"
 windows = { version = "0.62", features = [
     "Win32_Graphics_Gdi",
@@ -27,6 +35,7 @@ windows = { version = "0.62", features = [
 [dev-dependencies]
 ib-hook = { path = ".", features = [
     "sysinfo",
+    "inject-dll",
 ] }
 test-log = { version = "0.2", default-features = false, features = ["trace", "unstable"] }
 

@@ -1,9 +1,7 @@
 /*!
-Installs a hook procedure that receives notifications useful to Windows shell applications.
+Monitor window operations: creating, activating, title redrawing, monitor changing...
 
-Applications:
-- Monitor window operations: creating, activating, title redrawing, monitor changing...
-- Monitor GUI processes
+Installs a hook procedure that receives notifications useful to Windows shell applications.
 
 See:
 - [ShellProc callback function](https://learn.microsoft.com/en-us/windows/win32/winmsg/shellproc#parameters)

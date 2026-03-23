@@ -2,14 +2,44 @@
 Windows binary and system hooking library.
 
 Features:
-- [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell)
-- [GUI process watcher](#gui-process-watcher)
+- [DLL injection](#dll-injection):
+  Inject DLL into processes with optional RPC.
+- [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell):
+  Monitor window operations: creating, activating, title redrawing, monitor changing...
+- [GUI process watcher](#gui-process-watcher):
+  Monitor GUI processes.
+
+## DLL injection
+Inject DLL into processes with optional RPC.
+
+See [`inject::dll`] module for more details. Here is a quick example:
+```no_run
+use ib_hook::inject::dll::app::{DllApp, DllInjectionVec};
+
+struct MyDll;
+impl DllApp for MyDll {
+    const APPLY: &str = "apply_hook";
+    type Input = String;
+    type Output = ();
+}
+
+// Inject into all processes named Notepad.exe
+let mut injections = DllInjectionVec::<MyDll>::new();
+injections.inject_with_process_name("Notepad.exe")
+    .dll_path(std::path::Path::new("hook.dll"))
+    .apply("input".into())
+    .on_error(|pid, err| ())
+    .call()
+    .unwrap();
+
+// Eject all manually or let drop handle it
+injections.eject().on_error(|pid, err| ()).call();
+```
 
 ## Windows shell hook (`WH_SHELL`)
-Applications:
-- Monitor window operations: creating, activating, title redrawing, monitor changing...
-- Monitor GUI processes
+Monitor window operations: creating, activating, title redrawing, monitor changing...
 
+See [`windows::shell`] module for more details. Here is a quick example:
 ```no_run
 use ib_hook::windows::shell::{ShellHook, ShellHookMessage};
 {
@@ -27,6 +57,9 @@ use ib_hook::windows::shell::{ShellHook, ShellHookMessage};
 See also [ib-shell: Some desktop environment libraries, mainly for Windows Shell.](https://github.com/Chaoses-Ib/ib-shell)
 
 ## GUI process watcher
+Monitor GUI processes.
+
+See [`windows::process`] module for more details. Here is a quick example:
 ```no_run
 use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
 
@@ -51,4 +84,5 @@ let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
 std::thread::sleep(std::time::Duration::from_secs(60));
 ```
 */
+pub mod inject;
 pub mod windows;

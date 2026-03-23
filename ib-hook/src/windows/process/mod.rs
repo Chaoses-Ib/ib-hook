@@ -18,7 +18,7 @@ mod gui;
 pub use gui::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Display, Debug)]
-pub struct Pid(u32);
+pub struct Pid(pub u32);
 
 impl Pid {
     pub fn from_tid(tid: u32) -> windows::core::Result<Self> {

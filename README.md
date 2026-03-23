@@ -2,9 +2,14 @@
 Windows binary and system hooking Rust/C libraries.
 
 ## Features
-- [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell)
-- [GUI process watcher](#gui-process-watcher)
-- [DLL hijacking](#ib-dll-hijack-c)
+- [DLL injection](#dll-injection):
+  Inject DLL into processes with optional RPC.
+- [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell):
+  Monitor window operations: creating, activating, title redrawing, monitor changing...
+- [GUI process watcher](#gui-process-watcher):
+  Monitor GUI processes.
+- [DLL hijacking](#ib-dll-hijack-c):
+  Inject DLL by hijacking load.
 
 ## [ib-hook](ib-hook/README.md)
 [![crates.io](https://img.shields.io/crates/v/ib-hook.svg)](https://crates.io/crates/ib-hook)
@@ -13,10 +18,36 @@ Windows binary and system hooking Rust/C libraries.
 
 A Rust library for Windows binary and system hooking.
 
+See [documentation](https://docs.rs/ib-hook) for details.
+
+### DLL injection
+Inject DLL into processes with optional RPC.
+
+```rust
+use ib_hook::inject::dll::app::{DllApp, DllInjectionVec};
+
+struct MyDll;
+impl DllApp for MyDll {
+    const APPLY: &str = "apply_hook";
+    type Input = String;
+    type Output = ();
+}
+
+// Inject into all processes named Notepad.exe
+let mut injections = DllInjectionVec::<MyDll>::new();
+injections.inject_with_process_name("Notepad.exe")
+    .dll_path(std::path::Path::new("hook.dll"))
+    .apply("input".into())
+    .on_error(|pid, err| ())
+    .call()
+    .unwrap();
+
+// Eject all manually or let drop handle it
+injections.eject().on_error(|pid, err| ()).call();
+```
+
 ### Windows shell hook (`WH_SHELL`)
-Applications:
-- Monitor window operations: creating, activating, title redrawing, monitor changing...
-- Monitor GUI processes
+Monitor window operations: creating, activating, title redrawing, monitor changing...
 
 ```rust
 use ib_hook::windows::shell::{ShellHook, ShellHookMessage};
@@ -35,6 +66,8 @@ use ib_hook::windows::shell::{ShellHook, ShellHookMessage};
 See also [ib-shell: Some desktop environment libraries, mainly for Windows Shell.](https://github.com/Chaoses-Ib/ib-shell)
 
 ### GUI process watcher
+Monitor GUI processes.
+
 ```rust
 use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
 
