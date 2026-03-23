@@ -11,15 +11,25 @@ license.workspace = true
 [features]
 sysinfo = ["dep:sysinfo"]
 
+## The injection part of DLL injection.
 inject-dll = [
     "dep:dll-syringe",
-    "dep:serde",
+    "serde",
 ]
+## The DLL part of DLL injection.
+inject-dll-dll = [
+    "dep:dtor",
+    "dep:dll-syringe",
+    "serde",
+]
+
+serde = ["dep:serde"]
 
 [dependencies]
 bon = "3"
-derive_more = { version = "2", features = ["display"] }
+derive_more = { version = "2", features = ["deref", "display"] }
 dll-syringe = { version = "0.17", optional = true, features = ["payload-utils", "rpc-core"] }
+dtor = { version = "0.1", optional = true }
 nt-time = { version = "0.15", default-features = false, features = ["std"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 sysinfo = { version = ">=0.34,<0.39", optional = true, default-features = false, features = ["system"] }
@@ -36,8 +46,17 @@ windows = { version = "0.62", features = [
 ib-hook = { path = ".", features = [
     "sysinfo",
     "inject-dll",
+    "inject-dll-dll",
 ] }
 test-log = { version = "0.2", default-features = false, features = ["trace", "unstable"] }
+
+[[example]]
+name = "app-dll"
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "inject-app-dll"
+required-features = ["inject-dll"]
 
 [package.metadata.docs.rs]
 targets = ["x86_64-pc-windows-msvc"]

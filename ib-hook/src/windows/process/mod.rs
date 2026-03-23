@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use derive_more::Display;
+use derive_more::{Deref, Display};
 use tracing::debug;
 use windows::Win32::{
     Foundation::{GetLastError, HWND, WIN32_ERROR},
@@ -17,10 +17,15 @@ mod gui;
 
 pub use gui::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Display, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Display, Debug, Deref)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pid(pub u32);
 
 impl Pid {
+    pub fn current() -> Self {
+        Self(std::process::id())
+    }
+
     pub fn from_tid(tid: u32) -> windows::core::Result<Self> {
         let thread = unsafe { OpenThread(THREAD_QUERY_LIMITED_INFORMATION, false, tid) }?;
         match unsafe { GetProcessIdOfThread(thread) } {

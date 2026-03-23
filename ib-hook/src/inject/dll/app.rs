@@ -128,6 +128,14 @@ pub enum InjectError {
 /// Call `APPLY(Some(Input))` on [`inject`](DllInjection::inject),
 /// and `APPLY(None)` on [`eject`](DllInjection::eject)
 /// (and on drop if not [`leak`](DllInjection::leak)ed).
+/**
+<div class="warning">
+
+`APPLY(None)` should clean up all the references to the DLL's code,
+including hooks and threads. Otherwise, when the DLL is unloaded
+the process will crash due to memory access violation.
+</div>
+*/
 pub trait DllApp {
     /// The name of the exported function for RPC.
     const APPLY: &str;

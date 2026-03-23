@@ -3,14 +3,19 @@ Windows binary and system hooking library.
 
 Features:
 - [DLL injection](#dll-injection):
-  Inject DLL into processes with optional RPC.
+  Inject DLL into processes with optional RPC and auto self unload.
 - [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell):
   Monitor window operations: creating, activating, title redrawing, monitor changing...
 - [GUI process watcher](#gui-process-watcher):
   Monitor GUI processes.
 
 ## DLL injection
-Inject DLL into processes with optional RPC.
+Inject DLL into processes with optional RPC and auto self unload.
+
+- Optional RPC with `serde` input and output.
+- RAII (drop guard) design with optional `leak()`.
+- Single DLL injection / Multiple DLL injection manager.
+- Optioanlly, in the DLL, unload self automatically if the injector process aborted.
 
 See [`inject::dll`] module for more details. Here is a quick example:
 ```no_run

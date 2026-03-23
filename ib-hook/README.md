@@ -7,7 +7,7 @@ A Rust library for Windows binary and system hooking.
 
 Features:
 - [DLL injection](#dll-injection):
-  Inject DLL into processes with optional RPC.
+  Inject DLL into processes with optional RPC and auto self unload.
 - [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell):
   Monitor window operations: creating, activating, title redrawing, monitor changing...
 - [GUI process watcher](#gui-process-watcher):
@@ -16,7 +16,12 @@ Features:
 See [documentation](https://docs.rs/ib-hook) for details.
 
 ## DLL injection
-Inject DLL into processes with optional RPC.
+Inject DLL into processes with optional RPC and auto self unload.
+
+- Optional RPC with `serde` input and output.
+- RAII (drop guard) design with optional `leak()`.
+- Single DLL injection / Multiple DLL injection manager.
+- Optioanlly, in the DLL, unload self automatically if the injector process aborted.
 
 ```rust
 use ib_hook::inject::dll::app::{DllApp, DllInjectionVec};
@@ -40,6 +45,10 @@ injections.inject_with_process_name("Notepad.exe")
 // Eject all manually or let drop handle it
 injections.eject().on_error(|pid, err| ()).call();
 ```
+
+See [`src/bin/inject-app-dll.rs`](https://github.com/Chaoses-Ib/ib-hook/blob/master/ib-hook/src/bin/inject-app-dll.rs)
+and [`examples/app-dll.rs`](https://github.com/Chaoses-Ib/ib-hook/blob/master/ib-hook/examples/app-dll.rs)
+for a complete example.
 
 ## Windows shell hook (`WH_SHELL`)
 Monitor window operations: creating, activating, title redrawing, monitor changing...
