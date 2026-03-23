@@ -64,9 +64,9 @@ See also [ib-shell: Some desktop environment libraries, mainly for Windows Shell
 ## GUI process watcher
 Monitor GUI processes.
 
-See [`windows::process`] module for more details. Here is a quick example:
+See [`process`] module for more details. Here is a quick example:
 ```no_run
-use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
+use ib_hook::process::{GuiProcessEvent, GuiProcessWatcher};
 
 let watcher = GuiProcessWatcher::new(Box::new(|event| {
     println!("Process event: {event:?}");
@@ -78,7 +78,7 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 
 Apply a function on every existing and new GUI process exactly once:
 ```no_run
-use ib_hook::windows::process::GuiProcessWatcher;
+use ib_hook::process::GuiProcessWatcher;
 
 let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
     .filter_image_path(|path| {
@@ -90,4 +90,5 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 ```
 */
 pub mod inject;
+pub mod process;
 pub mod windows;

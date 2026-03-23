@@ -4,9 +4,9 @@ use std::{collections::HashMap, time::SystemTime};
 
 use bon::bon;
 
-use crate::windows::{
+use crate::{
     process::Pid,
-    shell::{ShellHook, ShellHookMessage},
+    windows::shell::{ShellHook, ShellHookMessage},
 };
 
 /// Callback for GUI process events
@@ -40,11 +40,11 @@ impl GuiProcessEvent {
 }
 
 /**
-Monitors GUI processes, using the Windows shell Hook API.
+Monitors GUI processes, using the Windows shell hook API.
 
 ## Examples
 ```no_run
-use ib_hook::windows::process::{GuiProcessEvent, GuiProcessWatcher};
+use ib_hook::process::{GuiProcessEvent, GuiProcessWatcher};
 
 let watcher = GuiProcessWatcher::new(Box::new(|event| {
     println!("Process event: {event:?}");
@@ -210,7 +210,7 @@ impl GuiProcessWatcher {
 
     ## Examples
     ```no_run
-    use ib_hook::windows::process::GuiProcessWatcher;
+    use ib_hook::process::GuiProcessWatcher;
 
     let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
         .filter_image_path(|path| {

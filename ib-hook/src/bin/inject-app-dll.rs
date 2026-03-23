@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use ib_hook::{
     inject::dll::app::{DllApp, DllInjectionVec},
-    windows::process::Pid,
+    process::Pid,
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]

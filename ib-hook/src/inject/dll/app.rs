@@ -1,5 +1,5 @@
 /*!
-Inject DLL into target processes with an optioned RPC schema.
+Inject DLL into target processes with an opinioned RPC schema.
 
 ## API
 - [`DllApp`]: DLL RPC schema.
@@ -101,7 +101,7 @@ use dll_syringe::{
 use thiserror::Error;
 use tracing::{error, info, warn};
 
-use crate::windows::process::Pid;
+use crate::process::Pid;
 
 pub use dll_syringe::{payload_utils::payload_procedure, process::OwnedProcess};
 

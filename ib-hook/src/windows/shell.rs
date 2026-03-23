@@ -43,7 +43,7 @@ use windows::Win32::{
 };
 use windows::core::w;
 
-use crate::windows::get_current_module_handle;
+use crate::process::module::get_current_module_handle;
 
 pub use windows::Win32::UI::WindowsAndMessaging::{
     HSHELL_ACCESSIBILITYSTATE, HSHELL_ACTIVATESHELLWINDOW, HSHELL_APPCOMMAND, HSHELL_ENDTASK,

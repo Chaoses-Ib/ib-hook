@@ -20,6 +20,9 @@ One more pitfall is that Rust will not drop static variables for DLL,
 so you should either not use any static variables (that hold resources),
 or use [`macro@dtor`] to drop manually, for example:
 ```no_run
+use std::cell::OnceCell;
+use ib_hook::inject::dll::dll::{dtor, ThreadGuard};
+
 static mut WAIT_AND_FREE: OnceCell<ThreadGuard> = OnceCell::new();
 
 #[dtor]
@@ -47,7 +50,7 @@ use windows::Win32::{
     },
 };
 
-use crate::windows::{get_current_module_handle, process::Pid};
+use crate::process::{Pid, module::get_current_module_handle};
 
 pub use dtor::dtor;
 

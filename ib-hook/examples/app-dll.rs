@@ -14,7 +14,7 @@ cargo run -p ib-hook --bin inject-app-dll --features inject-dll
 */
 use std::ffi::CString;
 
-use ib_hook::{inject::dll::app::DllApp, windows::process::Pid};
+use ib_hook::{inject::dll::app::DllApp, process::Pid};
 use windows::{Win32::UI::WindowsAndMessaging::MessageBoxA, core::PCSTR};
 
 #[derive(serde::Serialize, serde::Deserialize)]

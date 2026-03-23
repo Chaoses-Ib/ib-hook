@@ -1,3 +1,6 @@
+/*!
+Process utilities.
+*/
 #[cfg(feature = "sysinfo")]
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -14,9 +17,11 @@ use windows::Win32::{
 };
 
 mod gui;
+pub mod module;
 
 pub use gui::*;
 
+/// Process ID.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Display, Debug, Deref)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pid(pub u32);
