@@ -327,7 +327,7 @@ impl<D: DllApp> DllInjectionVec<D> {
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
-        mut on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+        mut on_error: Option<impl FnMut(Pid, InjectError)>,
     ) -> Result<&mut Self, InjectError> {
         if !dll_path.exists() {
             return Err(InjectError::DllNotFound(dll_path.to_path_buf()));
@@ -376,7 +376,7 @@ impl<D: DllApp> DllInjectionVec<D> {
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
-        on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+        on_error: Option<impl FnMut(Pid, InjectError)>,
     ) -> Result<&mut Self, InjectError> {
         // Find all processes with the given name
         let processes = OwnedProcess::find_all_by_name(process_name);
@@ -399,7 +399,7 @@ impl<D: DllApp> DllInjectionVec<D> {
     pub fn apply(
         &self,
         #[builder(start_fn)] input: &D::Input,
-        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError)>,
     ) {
         for injection in &self.injections {
             if let Err(e) = injection.apply(input) {
@@ -416,7 +416,7 @@ impl<D: DllApp> DllInjectionVec<D> {
     #[builder]
     pub fn unapply(
         &self,
-        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError)>,
     ) {
         for injection in &self.injections {
             if let Err(e) = injection.unapply() {
@@ -434,7 +434,7 @@ impl<D: DllApp> DllInjectionVec<D> {
         /// Optional callback for errors during ejection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
-        mut on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+        mut on_error: Option<impl FnMut(Pid, InjectError)>,
     ) {
         for mut injection in self.injections.drain(..) {
             let pid = injection.pid;
@@ -526,7 +526,7 @@ impl<D: DllApp> DllInjectionVecWithInput<D> {
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
-        on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+        on_error: Option<impl FnMut(Pid, InjectError)>,
     ) -> Result<&mut Self, InjectError> {
         self.inner
             .inject(processes)
@@ -553,7 +553,7 @@ impl<D: DllApp> DllInjectionVecWithInput<D> {
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
-        on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+        on_error: Option<impl FnMut(Pid, InjectError)>,
     ) -> Result<&mut Self, InjectError> {
         self.inner
             .inject_with_process_name(process_name)
@@ -571,7 +571,7 @@ impl<D: DllApp> DllInjectionVecWithInput<D> {
     pub fn apply(
         &mut self,
         #[builder(start_fn)] input: D::Input,
-        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError)>,
     ) {
         let input = self.input.insert(input);
         self.inner.apply(input).maybe_on_error(on_error).call();
@@ -583,7 +583,7 @@ impl<D: DllApp> DllInjectionVecWithInput<D> {
     #[builder]
     pub fn unapply(
         &mut self,
-        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError)>,
     ) {
         self.input = None;
         self.inner.unapply().maybe_on_error(on_error).call()
