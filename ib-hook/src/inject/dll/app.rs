@@ -86,7 +86,7 @@ injections.inject(processes.into_iter())
 
 ## Disclaimer
 This is currently implemented as a wrapper of [`dll_syringe`],
-for object ownership (avoiding self-references) and RAII (drop guard).
+for object ownership (avoiding self-references), RAII (drop guard) and `Send`.
 
 Ref: https://github.com/Chaoses-Ib/ib-shell/blob/7dc099ea07a9c0a0e2db6aea10a74b2b53c9373e/ib-shell-item/src/hook/inject.rs
 */
@@ -158,6 +158,18 @@ pub struct DllInjection<D: DllApp> {
     /// Whether the injection has been ejected (prevents cleanup on drop).
     ejected: bool,
 }
+
+/**
+[`Syringe`] contains [`RemoteBoxAllocator`] which is [`Rc`] inner and thus `!Send`.
+But [`Syringe`] itself is `!Clone`, it's actually `Send`.
+*/
+unsafe impl<D: DllApp> Send for DllInjection<D> {}
+
+/*
+Only [`apply()`] works with `&self`.
+Unfortunately, it uses a `!Sync` allocator.
+*/
+// unsafe impl<D: DllApp> Sync for DllInjection<D> {}
 
 #[bon]
 impl<D: DllApp> DllInjection<D> {
