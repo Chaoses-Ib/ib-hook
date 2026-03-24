@@ -43,7 +43,7 @@ use windows::Win32::{
 };
 use windows::core::w;
 
-use crate::process::module::get_current_module_handle;
+use crate::process::module::Module;
 
 pub use windows::Win32::UI::WindowsAndMessaging::{
     HSHELL_ACCESSIBILITYSTATE, HSHELL_ACTIVATESHELLWINDOW, HSHELL_APPCOMMAND, HSHELL_ENDTASK,
@@ -217,7 +217,7 @@ impl ShellHook {
 
                 let wc = WNDCLASSW {
                     lpfnWndProc: Some(window_proc),
-                    hInstance: get_current_module_handle().into(),
+                    hInstance: Module::current().0.into(),
                     lpszClassName: class_name,
                     ..Default::default()
                 };

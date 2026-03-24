@@ -53,7 +53,7 @@ use windows::Win32::{
     },
 };
 
-use crate::process::{Pid, module::get_current_module_handle};
+use crate::process::{Pid, module::Module};
 
 pub use dtor::dtor;
 
@@ -62,7 +62,7 @@ Should clean up all the references to the DLL's code before,
 including hooks and threads.
 */
 pub fn free_current_module_and_exit_thread(code: u32) -> ! {
-    unsafe { FreeLibraryAndExitThread(get_current_module_handle(), code) }
+    unsafe { FreeLibraryAndExitThread(Module::current().0, code) }
 }
 
 /**

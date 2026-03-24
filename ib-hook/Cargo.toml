@@ -27,7 +27,7 @@ serde = ["dep:serde"]
 
 [dependencies]
 bon = "3"
-derive_more = { version = "2", features = ["deref", "display"] }
+derive_more = { version = "2", features = ["deref", "display", "from"] }
 dll-syringe = { version = "0.17", optional = true, features = ["payload-utils", "rpc-core"] }
 dtor = { version = "0.1", optional = true }
 nt-time = { version = "0.15", default-features = false, features = ["std"] }
