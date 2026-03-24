@@ -34,7 +34,7 @@ impl DllApp for MyDll {
 #[ib_hook::inject::dll::app::payload_procedure]
 fn apply_hook(input: Option<<MyDll as DllApp>::Input>) -> <MyDll as DllApp>::Output {
     if let Some(input) = input {
-        ib_hook::inject::dll::dll::spawn_wait_and_free_current_module_once(input.injector, || {
+        ib_hook::inject::dll::dll::spawn_wait_and_free_current_module_once!(input.injector, || {
             unapply();
             0
         });
