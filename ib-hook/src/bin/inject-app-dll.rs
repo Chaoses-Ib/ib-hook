@@ -47,7 +47,7 @@ fn main() {
     injections
         .inject_with_process_name("Notepad.exe")
         .dll_path(&dll_path)
-        .apply(Input {
+        .apply(&Input {
             injector: Pid::current(),
             s: "Hello, World!".into(),
         })

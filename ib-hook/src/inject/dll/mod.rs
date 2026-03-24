@@ -20,7 +20,7 @@ impl DllApp for MyDll {
 let mut injections = DllInjectionVec::<MyDll>::new();
 injections.inject_with_process_name("Notepad.exe")
     .dll_path(std::path::Path::new("hook.dll"))
-    .apply("input".into())
+    .apply(&"input".into())
     .on_error(|pid, err| ())
     .call()
     .unwrap();

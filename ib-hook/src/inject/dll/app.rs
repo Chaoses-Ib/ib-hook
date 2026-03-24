@@ -8,6 +8,7 @@ Inject DLL into target processes with an opinioned RPC schema.
 - [`DllInjection::leak()`]: Prevent automatic ejection on drop.
 - [`DllInjection::drop()`]: Automatically unapply and eject if not already ejected (or [`DllInjection::leak`]ed).
 - [`DllInjectionVec`]: Manages multiple injections with batch eject support.
+  - [`DllInjectionVecWithInput`]: With owned `dll_path` and `input` for `apply()`.
 
 ## Example: Single process injection
 
@@ -26,7 +27,7 @@ impl DllApp for MyDll {
 let process = OwnedProcess::find_first_by_name("Notepad.exe").unwrap();
 let mut injection = DllInjection::<MyDll>::inject(process)
     .dll_path(std::path::Path::new("hook.dll"))
-    .apply(&Some("input".into()))
+    .apply(&"input".into())
     .call()
     .unwrap();
 
@@ -50,7 +51,7 @@ impl DllApp for MyDll {
 let mut injections = DllInjectionVec::<MyDll>::new();
 injections.inject_with_process_name("Notepad.exe")
     .dll_path(std::path::Path::new("hook.dll"))
-    .apply("input".into())
+    .apply(&"input".into())
     .on_error(|pid, err| ())
     .call()
     .unwrap();
@@ -90,9 +91,13 @@ for object ownership (avoiding self-references), RAII (drop guard) and `Send`.
 
 Ref: https://github.com/Chaoses-Ib/ib-shell/blob/7dc099ea07a9c0a0e2db6aea10a74b2b53c9373e/ib-shell-item/src/hook/inject.rs
 */
-use std::{mem::transmute, path::Path};
+use std::{
+    mem::transmute,
+    path::{Path, PathBuf},
+};
 
 use bon::bon;
+use derive_more::{Deref, DerefMut};
 use dll_syringe::{
     Syringe,
     process::{BorrowedProcessModule, Process},
@@ -108,7 +113,7 @@ pub use dll_syringe::{payload_utils::payload_procedure, process::OwnedProcess};
 #[derive(Error, Debug)]
 pub enum InjectError {
     #[error("dll not found: {0}")]
-    DllNotFound(std::path::PathBuf),
+    DllNotFound(PathBuf),
     #[error("cannot find any {0} process")]
     ProcessNotFound(String),
     #[error("inject failed: {0}")]
@@ -150,7 +155,7 @@ pub struct DllInjection<D: DllApp> {
     /// The injected DLL module (borrowed from the syringe).
     payload: BorrowedProcessModule<'static>,
     /// Remote procedure to call apply on the injected DLL.
-    remote_apply: RemotePayloadProcedure<fn(Option<D::Input>) -> D::Output>,
+    remote_apply: RemotePayloadProcedure<fn(Option<&'static D::Input>) -> D::Output>,
     /// PID of the target process.
     pid: Pid,
     /// Whether APPLY was successfully called.
@@ -178,7 +183,7 @@ impl<D: DllApp> DllInjection<D> {
     pub fn inject(
         #[builder(start_fn)] process: OwnedProcess,
         dll_path: &Path,
-        #[builder(default = &None)] apply: &Option<D::Input>,
+        apply: Option<&D::Input>,
     ) -> Result<Self, InjectError> {
         let pid = Pid(process.pid().unwrap().get());
         let syringe = Syringe::for_process(process);
@@ -202,9 +207,9 @@ impl<D: DllApp> DllInjection<D> {
             ejected: false,
         };
 
-        if apply.is_some() {
+        if let Some(input) = apply {
             // Drop & eject on error
-            injection.apply(apply)?;
+            injection.apply(input)?;
             injection.applied = true;
         }
 
@@ -218,11 +223,24 @@ impl<D: DllApp> DllInjection<D> {
     }
 
     /// Call [`InjectDllApp::APPLY`] with the given input.
-    pub fn apply(
+    pub fn maybe_apply(
         &self,
-        input: &Option<D::Input>,
+        input: Option<&D::Input>,
     ) -> Result<D::Output, dll_syringe::rpc::PayloadRpcError> {
-        self.remote_apply.call(input)
+        if let Some(input) = input {
+            self.apply(input)
+        } else {
+            self.unapply()
+        }
+    }
+
+    /// Call [`InjectDllApp::APPLY`] with the given input.
+    pub fn apply(&self, input: &D::Input) -> Result<D::Output, dll_syringe::rpc::PayloadRpcError> {
+        // call() doen't really need 'static.
+        // &Option<D::Input> can be used instead and was used before,
+        // but it made life pathetic.
+        let input: &'static D::Input = unsafe { transmute(input) };
+        self.remote_apply.call(&Some(input))
     }
 
     pub fn unapply(&self) -> Result<D::Output, dll_syringe::rpc::PayloadRpcError> {
@@ -305,7 +323,7 @@ impl<D: DllApp> DllInjectionVec<D> {
         /// Path to the DLL
         dll_path: &Path,
         /// Optionally apply with the given input after injection.
-        apply: Option<D::Input>,
+        apply: Option<&D::Input>,
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
@@ -320,7 +338,7 @@ impl<D: DllApp> DllInjectionVec<D> {
             let pid = Pid(target_process.pid().unwrap().get());
             match DllInjection::inject(target_process)
                 .dll_path(&dll_path)
-                .apply(&apply)
+                .maybe_apply(apply)
                 .call()
             {
                 Ok(injection) => {
@@ -354,7 +372,7 @@ impl<D: DllApp> DllInjectionVec<D> {
         /// Path to the DLL
         dll_path: &Path,
         /// Optionally apply with the given input after injection.
-        apply: Option<D::Input>,
+        apply: Option<&D::Input>,
         /// Optional callback for errors during injection (called in the middle of the loop).
         ///
         /// Errors will always be logged.
@@ -380,7 +398,7 @@ impl<D: DllApp> DllInjectionVec<D> {
     #[builder]
     pub fn apply(
         &self,
-        #[builder(start_fn)] input: &Option<D::Input>,
+        #[builder(start_fn)] input: &D::Input,
         mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
     ) {
         for injection in &self.injections {
@@ -447,5 +465,127 @@ impl<D: DllApp> Drop for DllInjectionVec<D> {
             return;
         }
         self.eject().on_error(|_, _| ()).call();
+    }
+}
+
+/// A collection of injected processes that can be ejected together, with a shared input for apply.
+///
+/// Unlike [`DllInjectionVec`], this stores the input and applies it automatically during inject.
+#[derive(Deref, DerefMut)]
+pub struct DllInjectionVecWithInput<D: DllApp> {
+    dll_path: PathBuf,
+    input: Option<D::Input>,
+    #[deref]
+    #[deref_mut]
+    inner: DllInjectionVec<D>,
+}
+
+impl<D: DllApp> DllInjectionVecWithInput<D> {
+    /// Creates a new `DllInjectionVecWithInput` with the given DLL path.
+    ///
+    /// The DLL path is checked to ensure it exists.
+    pub fn new(dll_path: PathBuf) -> Result<Self, InjectError> {
+        Self::with_input(dll_path, None)
+    }
+
+    pub fn with_input(dll_path: PathBuf, input: Option<D::Input>) -> Result<Self, InjectError> {
+        if !dll_path.exists() {
+            return Err(InjectError::DllNotFound(dll_path));
+        }
+        Ok(Self {
+            dll_path,
+            input,
+            inner: Default::default(),
+        })
+    }
+
+    pub fn dll_path(&self) -> &PathBuf {
+        &self.dll_path
+    }
+
+    pub fn input(&self) -> Option<&D::Input> {
+        self.input.as_ref()
+    }
+}
+
+#[bon]
+impl<D: DllApp> DllInjectionVecWithInput<D> {
+    /// Inject the DLL into the given processes with the stored input and dll_path.
+    ///
+    /// Before [`DllInjectionVecWithInput::eject()`], the DLL file will be locked and can't be deleted.
+    ///
+    /// # Returns
+    /// - `Ok(DllInjectionVecWithInput)`: Successfully injected processes
+    /// - `Err(InjectError)`: Error during injection
+    #[builder]
+    pub fn inject(
+        &mut self,
+        /// Processes to inject into.
+        #[builder(start_fn)]
+        processes: impl Iterator<Item = OwnedProcess>,
+        /// Optional callback for errors during injection (called in the middle of the loop).
+        ///
+        /// Errors will always be logged.
+        on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+    ) -> Result<&mut Self, InjectError> {
+        self.inner
+            .inject(processes)
+            .dll_path(&self.dll_path)
+            .maybe_apply(self.input.as_ref())
+            .maybe_on_error(on_error)
+            .call()?;
+        Ok(self)
+    }
+
+    /// Inject the DLL into all processes with the given name.
+    ///
+    /// Before [`DllInjectionVecWithInput::eject()`], the DLL file will be locked and can't be deleted.
+    ///
+    /// # Returns
+    /// - `Ok(DllInjectionVecWithInput)`: Successfully injected processes
+    /// - `Err(InjectError)`: Error during injection
+    #[builder]
+    pub fn inject_with_process_name(
+        &mut self,
+        /// Name of the process to inject into.
+        #[builder(start_fn)]
+        process_name: &str,
+        /// Optional callback for errors during injection (called in the middle of the loop).
+        ///
+        /// Errors will always be logged.
+        on_error: Option<impl FnMut(Pid, InjectError) + 'static>,
+    ) -> Result<&mut Self, InjectError> {
+        self.inner
+            .inject_with_process_name(process_name)
+            .dll_path(&self.dll_path)
+            .maybe_apply(self.input.as_ref())
+            .maybe_on_error(on_error)
+            .call()?;
+        Ok(self)
+    }
+
+    /// Call [`apply`](DllInjection::apply) on all injections with the stored input.
+    ///
+    /// Updates the stored input to the new value.
+    #[builder]
+    pub fn apply(
+        &mut self,
+        #[builder(start_fn)] input: D::Input,
+        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+    ) {
+        let input = self.input.insert(input);
+        self.inner.apply(input).maybe_on_error(on_error).call();
+    }
+
+    /// Call [`unapply`](DllInjection::unapply) on all injections.
+    ///
+    /// Updates the stored input to `None`.
+    #[builder]
+    pub fn unapply(
+        &mut self,
+        on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+    ) {
+        self.input = None;
+        self.inner.unapply().maybe_on_error(on_error).call()
     }
 }
