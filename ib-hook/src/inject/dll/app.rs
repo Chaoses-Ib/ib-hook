@@ -362,6 +362,41 @@ impl<D: DllApp> DllInjectionVec<D> {
             .call()
     }
 
+    /// Call [`apply`](DllInjection::apply) on all injections.
+    ///
+    /// Errors are reported via the `on_error` callback.
+    #[builder]
+    pub fn apply(
+        &self,
+        #[builder(start_fn)] input: &Option<D::Input>,
+        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+    ) {
+        for injection in &self.injections {
+            if let Err(e) = injection.apply(input) {
+                if let Some(on_error) = on_error.as_mut() {
+                    on_error(injection.pid(), &e);
+                }
+            }
+        }
+    }
+
+    /// Call [`unapply`](DllInjection::unapply) on all injections.
+    ///
+    /// Errors are reported via the `on_error` callback.
+    #[builder]
+    pub fn unapply(
+        &self,
+        mut on_error: Option<impl FnMut(Pid, &dll_syringe::rpc::PayloadRpcError) + 'static>,
+    ) {
+        for injection in &self.injections {
+            if let Err(e) = injection.unapply() {
+                if let Some(on_error) = on_error.as_mut() {
+                    on_error(injection.pid(), &e);
+                }
+            }
+        }
+    }
+
     /// Eject all DLL injections.
     #[builder]
     pub fn eject(
