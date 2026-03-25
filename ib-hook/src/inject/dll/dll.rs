@@ -41,6 +41,7 @@ Or, if the leaked resources won't matter, just ignoring this is fine.
 */
 use std::{
     cell::OnceCell,
+    mem,
     os::windows::io::{AsRawHandle, OwnedHandle},
     thread,
 };
@@ -104,6 +105,13 @@ impl<T> From<thread::JoinHandle<T>> for ThreadGuard {
     }
 }
 
+impl ThreadGuard {
+    pub fn dismiss(self) -> OwnedHandle {
+        let t = mem::ManuallyDrop::new(self);
+        unsafe { std::ptr::read(&t.0) }
+    }
+}
+
 impl Drop for ThreadGuard {
     fn drop(&mut self) {
         _ = unsafe { TerminateThread(HANDLE(self.0.as_raw_handle()), 0) };
@@ -131,6 +139,14 @@ pub mod manual {
         pid: Pid,
         teardown: impl FnOnce() -> u32 + Send + 'static,
     ) {
+        // Dismiss auto self unload thread guard
+        // free() may terminate FreeLibraryAndExitThread() and cause crash.
+        let teardown = || {
+            unsafe { &mut *&raw mut WAIT_AND_FREE }
+                .take()
+                .map(|w| w.dismiss());
+            teardown()
+        };
         unsafe { &*&raw const WAIT_AND_FREE }
             .get_or_init(move || unsafe { spawn_wait_and_free_current_module(pid, teardown) });
     }
