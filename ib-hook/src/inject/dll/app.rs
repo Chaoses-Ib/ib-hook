@@ -219,10 +219,18 @@ impl<D: DllApp> DllInjection<D> {
 
         info!(%pid, ?dll_path, "Injecting");
         let payload = syringe.find_or_inject(dll_path)?;
+        let eject = || {
+            if let Err(e) = syringe.eject(payload) {
+                warn!(?e, "eject");
+            }
+        };
 
+        // Eject if ApplyNotFound
         let remote_apply = unsafe { syringe.get_payload_procedure(payload, D::APPLY) }
-            .map_err(InjectError::from)?
-            .ok_or(InjectError::ApplyNotFound)?;
+            .map_err(InjectError::from)
+            .inspect_err(|_| eject())?
+            .ok_or(InjectError::ApplyNotFound)
+            .inspect_err(|_| eject())?;
 
         // Transmute payload to 'static since syringe (owner of process) is returned
         let payload = unsafe { transmute(payload) };
