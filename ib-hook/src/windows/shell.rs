@@ -29,7 +29,7 @@ Ref:
 - https://github.com/YousefAliUK/FerroDock/blob/b405832a64c763f073b37d9a42a0690d0c15416b/src/events.rs
 - https://gist.github.com/Aetopia/347e7329158aa2c69df97bdf0b761d6f
 */
-use std::sync::OnceLock;
+use std::sync::{Once, OnceLock};
 
 use tracing::{debug, error};
 use windows::Win32::{
@@ -210,8 +210,10 @@ impl ShellHook {
         let _thread = std::thread::spawn({
             let hwnd_store = hwnd.clone();
             move || {
+                /*
                 let shell_msg = unsafe { RegisterWindowMessageW(w!("SHELLHOOK")) };
                 SHELL_HOOK_MSG.set(shell_msg).ok();
+                */
 
                 let class_name = w!("ib_hook::shell");
 
@@ -222,10 +224,12 @@ impl ShellHook {
                     ..Default::default()
                 };
 
-                if unsafe { RegisterClassW(&wc) } == 0 {
-                    error!("Failed to register window class");
-                    return;
-                }
+                // Only `RegisterClass` once
+                CLASS_REGISTER.call_once(|| {
+                    if unsafe { RegisterClassW(&wc) } == 0 {
+                        error!("Failed to register window class");
+                    }
+                });
 
                 let hwnd = unsafe {
                     CreateWindowExW(
@@ -314,6 +318,8 @@ static SHELL_HOOK_MSG: OnceLock<u32> = OnceLock::new();
 fn shell_hook_msg() -> u32 {
     *SHELL_HOOK_MSG.get_or_init(|| unsafe { RegisterWindowMessageW(w!("SHELLHOOK")) })
 }
+
+static CLASS_REGISTER: Once = Once::new();
 
 /// The return value should be zero unless the value of nCode is [`HSHELL_APPCOMMAND`]
 /// and the shell procedure handles the [`WM_COMMAND`] message. In this case, the return should be nonzero.
