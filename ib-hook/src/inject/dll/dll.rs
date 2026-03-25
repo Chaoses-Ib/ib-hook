@@ -28,9 +28,11 @@ use ib_hook::inject::dll::dll::{dtor, ThreadGuard};
 
 static mut WAIT_AND_FREE: OnceCell<ThreadGuard> = OnceCell::new();
 
-#[dtor]
-fn free() {
-    unsafe { &mut *&raw mut WAIT_AND_FREE }.take();
+dtor! {
+    #[dtor]
+    fn free() {
+        unsafe { &mut *&raw mut WAIT_AND_FREE }.take();
+    }
 }
 ```
 Or, if the leaked resources won't matter, just ignoring this is fine.
@@ -55,7 +57,7 @@ use windows::Win32::{
 
 use crate::process::{Pid, module::Module};
 
-pub use dtor::dtor;
+pub use dtor::declarative::dtor;
 
 /**
 Should clean up all the references to the DLL's code before,
@@ -153,13 +155,15 @@ this is implemented as a macro instead of a function.
 #[macro_export]
 macro_rules! spawn_wait_and_free_current_module_once {
     ($pid:expr, $teardown:expr) => {
-        #[::ib_hook::inject::dll::dll::dtor]
-        fn free() {
-            ::ib_hook::inject::dll::dll::manual::free();
+        $crate::inject::dll::dll::dtor! {
+            #[dtor(anonymous)]
+            fn free() {
+                $crate::inject::dll::dll::manual::free();
+            }
         }
 
         unsafe {
-            ::ib_hook::inject::dll::dll::manual::spawn_wait_and_free_current_module_once(
+            $crate::inject::dll::dll::manual::spawn_wait_and_free_current_module_once(
                 $pid, $teardown,
             )
         }

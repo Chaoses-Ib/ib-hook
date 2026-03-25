@@ -108,7 +108,9 @@ use tracing::{error, info, warn};
 
 use crate::process::Pid;
 
-pub use dll_syringe::{payload_utils::payload_procedure, process::OwnedProcess};
+#[doc(hidden)]
+pub use dll_syringe::payload_utils::__payload_procedure_helper;
+pub use dll_syringe::process::OwnedProcess;
 
 #[derive(Error, Debug)]
 pub enum InjectError {
@@ -148,6 +150,33 @@ pub trait DllApp {
     type Input: serde::Serialize + 'static;
     type Output: serde::de::DeserializeOwned + 'static;
 }
+
+/**
+Usage:
+```ignore
+ib_hook::inject::dll::app::export_apply!(apply_hook, "apply_hook");
+```
+
+TODO: https://github.com/rust-lang/rust/issues/52393
+TODO: https://github.com/rust-lang/rust/issues/143547 or proc macro
+*/
+#[macro_export]
+macro_rules! export_apply {
+    ($apply:ident, $export_name:literal) => {
+        const _: () = {
+            #[unsafe(export_name = $export_name)]
+            pub unsafe extern "system" fn _ib_hook_inject_dll_app_apply(
+                __args_and_params: *mut ::core::ffi::c_void,
+            ) {
+                $crate::inject::dll::app::__payload_procedure_helper(__args_and_params, |__args| {
+                    let (input,) = __args;
+                    $apply(input)
+                });
+            }
+        };
+    };
+}
+pub use export_apply;
 
 /// Represents an injected DLL with its syringe, payload, and remote apply function.
 pub struct DllInjection<D: DllApp> {

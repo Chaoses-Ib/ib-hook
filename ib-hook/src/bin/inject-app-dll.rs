@@ -2,7 +2,7 @@
 Setup:
 ```sh
 cargo add ib-hook --features inject-dll
-cargo add serde
+cargo add serde --features derive
 ```
 
 To run this example:

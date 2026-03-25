@@ -2,7 +2,8 @@
 Setup:
 ```sh
 cargo add ib-hook --features inject-dll-dll
-cargo add serde windows
+cargo add serde --features derive
+cargo add windows
 ```
 And set `crate-type = ["cdylib"]`.
 
@@ -31,7 +32,8 @@ impl DllApp for MyDll {
     type Output = ();
 }
 
-#[ib_hook::inject::dll::app::payload_procedure]
+ib_hook::inject::dll::app::export_apply!(apply_hook, "apply_hook");
+
 fn apply_hook(input: Option<<MyDll as DllApp>::Input>) -> <MyDll as DllApp>::Output {
     if let Some(input) = input {
         ib_hook::inject::dll::dll::spawn_wait_and_free_current_module_once!(input.injector, || {
