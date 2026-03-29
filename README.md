@@ -2,6 +2,8 @@
 Windows binary and system hooking Rust/C libraries.
 
 ## Features
+- [Inline hooking](#inline-hooking):
+  Hook functions on x86/x64/ARM64, `no_std` and `Ntdll.dll` only.
 - [DLL injection](#dll-injection):
   Inject DLL into processes with optional RPC and auto self unload.
 - [Windows shell hook (`WH_SHELL`)](#windows-shell-hook-wh_shell):
@@ -19,6 +21,31 @@ Windows binary and system hooking Rust/C libraries.
 A Rust library for Windows binary and system hooking.
 
 See [documentation](https://docs.rs/ib-hook) for details.
+
+### Inline hooking
+- Supported CPU architectures: x86, x64, ARM64.
+- Support system ABI (`system`, `stdcall`/`win64`) only.
+- `no_std` and depend on `Ntdll.dll` only.
+
+```rust
+use ib_hook::inline::InlineHook;
+
+extern "system" fn original(x: u32) -> u32 { x + 1 }
+
+// Hook the function with a detour
+extern "system" fn hooked(x: u32) -> u32 { x + 0o721 }
+let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new(original, hooked).unwrap();
+
+// Now calls to original are redirected to hooked
+assert_eq!(original(0x100), 721); // redirected to hooked: 0x100 + 0o721 = 721
+
+// Access original via trampoline
+assert_eq!(hook.trampoline()(0x100), 0x101); // 0x100 + 1
+
+// Disable the hook manually (or automatically on drop)
+hook.disable().unwrap();
+assert_eq!(original(0x100), 0x101); // back to original
+```
 
 ### DLL injection
 Inject DLL into processes with optional RPC and auto self unload.

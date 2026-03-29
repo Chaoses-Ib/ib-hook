@@ -302,6 +302,7 @@ dependencies = [
  "ib-hook",
  "nt-time",
  "serde",
+ "slim-detours-sys",
  "sysinfo 0.38.4",
  "test-log",
  "thiserror",
@@ -744,6 +745,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "slim-detours-sys"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19a519e4f3dc47c5f55a3c1d87b6ba499a11bd81c3a3ca2ed0c835f5e120fd32"
+dependencies = [
+ "windows-sys",
 ]
 
 [[package]]
