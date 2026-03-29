@@ -12,6 +12,7 @@ Inline hooking.
 
   If you may enable/disable hooks from multiple threads at the same time,
   use a [`std::sync::Mutex`] lock.
+- To init a (`mut`) `static`, [`InlineHook::new_disabled()`] can be used.
 
 ## Examples
 ```
@@ -116,7 +117,7 @@ impl<F: FnPtr> InlineHook<F> {
     /// ## Returns
     /// `InlineHookGuard` with the hook not yet applied.
     /// Call `enable()` to apply it.
-    pub fn new_disabled(target: F, detour: F) -> Self {
+    pub const fn new_disabled(target: F, detour: F) -> Self {
         Self {
             target,
             trampoline: target,
@@ -204,7 +205,7 @@ impl<F: FnPtr> InlineHook<F> {
 
     /// Returns the target function being hooked.
     #[inline]
-    pub fn target(&self) -> F {
+    pub const fn target(&self) -> F {
         self.target
     }
 
@@ -218,7 +219,7 @@ impl<F: FnPtr> InlineHook<F> {
 
     /// Returns the detour function that will be called when the hook is active.
     #[inline]
-    pub fn detour(&self) -> F {
+    pub const fn detour(&self) -> F {
         self.detour
     }
 
@@ -227,7 +228,7 @@ impl<F: FnPtr> InlineHook<F> {
     /// When the hook is enabled, calling `target()` redirects to `detour()`,
     /// while `trampoline()` provides access to the original target functionality.
     #[inline]
-    pub fn trampoline(&self) -> F {
+    pub const fn trampoline(&self) -> F {
         self.trampoline
     }
 }
@@ -277,6 +278,16 @@ mod tests {
 
         assert_send(&hook);
         assert_sync(&hook);
+
+        {
+            type MyFn = unsafe extern "system" fn(*mut c_void) -> u32;
+            unsafe extern "system" fn dummy(_x: *mut c_void) -> u32 {
+                0
+            }
+            let hook = InlineHook::<MyFn>::new_disabled(dummy, dummy);
+            assert_send(&hook);
+            assert_sync(&hook);
+        }
     }
 
     #[test]
