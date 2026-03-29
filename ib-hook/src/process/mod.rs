@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use derive_more::{Deref, Display};
-use tracing::debug;
 use windows::Win32::{
     Foundation::{GetLastError, HWND, WIN32_ERROR},
     System::Threading::{
@@ -15,6 +14,8 @@ use windows::Win32::{
     },
     UI::WindowsAndMessaging::GetWindowThreadProcessId,
 };
+
+use crate::log::*;
 
 mod gui;
 pub mod module;

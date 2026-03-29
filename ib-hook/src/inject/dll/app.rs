@@ -104,9 +104,8 @@ use dll_syringe::{
     rpc::RemotePayloadProcedure,
 };
 use thiserror::Error;
-use tracing::{error, info, warn};
 
-use crate::process::Pid;
+use crate::{log::*, process::Pid};
 
 #[doc(hidden)]
 pub use dll_syringe::payload_utils::__payload_procedure_helper;

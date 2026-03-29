@@ -126,6 +126,7 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 pub mod inject;
 #[cfg(feature = "inline")]
 pub mod inline;
+mod log;
 pub mod process;
 pub mod windows;
 

@@ -48,10 +48,9 @@ Ref: https://github.com/Chaoses-Ib/ib-shell/pull/1
 use core::{ffi::c_void, fmt::Debug, mem::transmute_copy};
 
 use slim_detours_sys::SlimDetoursInlineHook;
-use tracing::debug;
 use windows::core::HRESULT;
 
-use crate::FnPtr;
+use crate::{FnPtr, log::*};
 
 /// Type-safe and RAII (drop guard) wrapper of an inline hook.
 ///

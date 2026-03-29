@@ -30,6 +30,9 @@ inject-dll-dll = [
 ## `serde` support.
 serde = ["dep:serde"]
 
+## Logging via `tracing`, mainly for debugging.
+tracing = ["dep:tracing"]
+
 doc = ["dep:document-features"]
 
 [dependencies]
@@ -42,7 +45,7 @@ nt-time = { version = "0.15", default-features = false, features = ["std"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 sysinfo = { version = ">=0.34,<0.39", optional = true, default-features = false, features = ["system"] }
 thiserror = "2"
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }
 
 [target.'cfg(target_family = "windows")'.dependencies]
 slim-detours-sys = { version = "0.4", optional = true }
@@ -59,6 +62,7 @@ ib-hook = { path = ".", features = [
     "sysinfo",
     "inject-dll",
     "inject-dll-dll",
+    "tracing",
 ] }
 test-log = { version = "0.2", default-features = false, features = ["trace", "unstable"] }
 

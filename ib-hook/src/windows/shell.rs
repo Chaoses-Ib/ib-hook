@@ -31,7 +31,6 @@ Ref:
 */
 use std::sync::{Once, OnceLock};
 
-use tracing::{debug, error};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
     UI::WindowsAndMessaging::{
@@ -43,7 +42,7 @@ use windows::Win32::{
 };
 use windows::core::w;
 
-use crate::process::module::Module;
+use crate::{log::*, process::module::Module};
 
 pub use windows::Win32::UI::WindowsAndMessaging::{
     HSHELL_ACCESSIBILITYSTATE, HSHELL_ACTIVATESHELLWINDOW, HSHELL_APPCOMMAND, HSHELL_ENDTASK,
