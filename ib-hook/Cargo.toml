@@ -9,6 +9,15 @@ repository.workspace = true
 license.workspace = true
 
 [features]
+default = ["std"]
+
+## `std` dependency.
+std = [
+    "thiserror/std",
+    "serde?/std",
+    "nt-time/std",
+]
+
 ## Inline hooking.
 inline = ["dep:slim-detours-sys"]
 
@@ -17,6 +26,7 @@ sysinfo = ["dep:sysinfo"]
 
 ## The injection part of DLL injection.
 inject-dll = [
+    "std",
     "dep:dll-syringe",
     "serde",
 ]
@@ -41,10 +51,10 @@ derive_more = { version = "2", features = ["deref", "deref_mut", "display", "fro
 dll-syringe = { version = "0.17", optional = true, features = ["payload-utils", "rpc-core"] }
 document-features = { version = "0.2", optional = true }
 dtor = { version = "0.1", optional = true }
-nt-time = { version = "0.15", default-features = false, features = ["std"] }
-serde = { version = "1", optional = true, features = ["derive"] }
+nt-time = { version = "0.15", optional = true, default-features = false }
+serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 sysinfo = { version = ">=0.34,<0.39", optional = true, default-features = false, features = ["system"] }
-thiserror = "2"
+thiserror = { version = "2", default-features = false }
 tracing = { version = "0.1", optional = true }
 
 [target.'cfg(target_family = "windows")'.dependencies]
