@@ -37,7 +37,7 @@ ib_hook::inject::dll::app::export_apply!(apply_hook, "apply_hook");
 fn apply_hook(input: Option<<MyDll as DllApp>::Input>) -> <MyDll as DllApp>::Output {
     if let Some(input) = input {
         ib_hook::inject::dll::dll::spawn_wait_and_free_current_module_once!(input.injector, || {
-            apply_hook(None);
+            unapply();
             0
         });
 
@@ -51,14 +51,18 @@ fn apply_hook(input: Option<<MyDll as DllApp>::Input>) -> <MyDll as DllApp>::Out
             )
         };
     } else {
-        let s = CString::new("unapply").unwrap();
-        unsafe {
-            MessageBoxA(
-                None,
-                PCSTR(s.as_ptr().cast()),
-                PCSTR::null(),
-                Default::default(),
-            )
-        };
+        unapply();
     }
+}
+
+fn unapply() {
+    let s = CString::new("unapply").unwrap();
+    unsafe {
+        MessageBoxA(
+            None,
+            PCSTR(s.as_ptr().cast()),
+            PCSTR::null(),
+            Default::default(),
+        )
+    };
 }

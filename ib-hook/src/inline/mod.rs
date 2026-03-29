@@ -15,6 +15,7 @@ Inline hooking.
 
 ## Examples
 ```
+// cargo add ib-hook --features inline
 use ib_hook::inline::InlineHook;
 
 extern "system" fn original(x: u32) -> u32 { x + 1 }

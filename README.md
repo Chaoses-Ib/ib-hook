@@ -28,6 +28,7 @@ See [documentation](https://docs.rs/ib-hook) for details.
 - `no_std` and depend on `Ntdll.dll` only.
 
 ```rust
+// cargo add ib-hook --features inline
 use ib_hook::inline::InlineHook;
 
 extern "system" fn original(x: u32) -> u32 { x + 1 }
@@ -117,6 +118,7 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 
 Apply a function on every existing and new GUI process exactly once:
 ```rust
+// cargo add ib-hook --features sysinfo
 use ib_hook::process::GuiProcessWatcher;
 
 let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
@@ -156,7 +158,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 You can use the [generator](ib-dll-hijack-c/generator/README.md) to generate header files for any DLL.
 
 ## Projects using this library
-* [IbDOpusExt](https://github.com/Chaoses-Ib/IbDOpusExt)
-* [IbEverythingExt](https://github.com/Chaoses-Ib/IbEverythingExt)
-* [IbLogiSoftExt](https://github.com/Chaoses-Ib/IbLogiSoftExt)
-* [IbOneNoteExt](https://github.com/Chaoses-Ib/IbOneNoteExt)
+- [ib-shell: Some desktop environment libraries, mainly for Windows Shell (Windows' built-in desktop environment).](https://github.com/Chaoses-Ib/ib-shell)
+- [IbEverythingExt: Everything 拼音搜索, ローマ字検索, wildcard, quick select, Shell extension](https://github.com/Chaoses-Ib/IbEverythingExt)
+- [IbDOpusExt: An extension for Directory Opus.](https://github.com/Chaoses-Ib/IbDOpusExt)
+- [IbLogiSoftExt: An extension for Logitech Gaming Software. Support sending G-keys to AutoHotkey.](https://github.com/Chaoses-Ib/IbLogiSoftExt)
+- [IbOneNoteExt: An extension for Microsoft OneNote. Support changing font Calibri to Microsoft YaHei.](https://github.com/Chaoses-Ib/IbOneNoteExt)

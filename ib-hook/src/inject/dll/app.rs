@@ -157,6 +157,50 @@ Usage:
 ib_hook::inject::dll::app::export_apply!(apply_hook, "apply_hook");
 ```
 
+## Implementation
+For example:
+```ignore
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub(crate) struct ArgAndResultBufInfo {
+    pub data: u64,
+    pub len: u64,
+    pub is_error: bool,
+}
+
+const _: () = {
+    #[unsafe(export_name = "ib_shell_apply")]
+    pub unsafe extern "system" fn _ib_hook_inject_dll_app_apply(
+        __args_and_params: *mut ::core::ffi::c_void,
+    ) {
+        let buf_info_ptr = __args_and_params;
+        let buf_info_ptr = buf_info_ptr.cast::<ArgAndResultBufInfo>();
+        let buf_info = unsafe { &mut *buf_info_ptr };
+        // buf_info.len = buf_info.len - 1;
+        let buf =
+            unsafe { slice::from_raw_parts_mut(buf_info.data as *mut u8, buf_info.len as usize) };
+        // dbg!(&buf_info);
+
+        let config = bincode::config::standard();
+
+        // eprintln!("decode_from_slice {:02X?}", buf);
+        let args: Result<((Option<Input>,), usize), bincode::error::DecodeError> =
+            bincode::serde::decode_from_slice::<(Option<Input>,), _>(buf, config);
+        // eprintln!("{:X}\n{:02X?}\nargs: {:?}", buf_info.data, buf, &args);
+
+        ib_hook::inject::dll::app::__payload_procedure_helper(__args_and_params, |__args| {
+            let (input,) = __args;
+
+            // panic!(
+            //     "{:X}\n{:02X?}\n{:?}\n{:?}",
+            //     buf_info.data, buf, &input, &args
+            // );
+            apply_hook(input)
+        });
+    }
+};
+```
+
 TODO: https://github.com/rust-lang/rust/issues/52393
 TODO: https://github.com/rust-lang/rust/issues/143547 or proc macro
 */
@@ -259,7 +303,7 @@ impl<D: DllApp> DllInjection<D> {
         self.pid
     }
 
-    /// Call [`InjectDllApp::APPLY`] with the given input.
+    /// Call [`DllApp::APPLY`] with the given input.
     pub fn maybe_apply(
         &self,
         input: Option<&D::Input>,
@@ -271,7 +315,31 @@ impl<D: DllApp> DllInjection<D> {
         }
     }
 
-    /// Call [`InjectDllApp::APPLY`] with the given input.
+    /// Call [`DllApp::APPLY`] with the given input.
+    /**
+    ## Implementation
+    ```ignore
+    let args = (input,);
+    let config = bincode::config::standard();
+
+    let mut size_writer = bincode::enc::write::SizeWriter::default();
+    bincode::serde::encode_into_writer(&args, &mut size_writer, config)?;
+    let arg_bytes = size_writer.bytes_written;
+    let mut local_arg_buf = Vec::with_capacity(arg_bytes);
+    bincode::serde::encode_into_std_write(&args, &mut local_arg_buf, config)?;
+    unsafe { local_arg_buf.set_len(arg_bytes) };
+    // println!("{:02X?}", local_arg_buf);
+
+    /*
+    let buf = &local_arg_buf[..arg_bytes].to_owned();
+    println!("decode_from_slice {:02X?}", buf);
+    let args: Result<((Option<Input>,), usize), bincode::error::DecodeError> =
+        bincode::serde::decode_from_slice::<(Option<Input>,), _>(buf, config);
+    println!("{:?}", args);
+    */
+    ...
+    ```
+    */
     pub fn apply(&self, input: &D::Input) -> Result<D::Output, dll_syringe::rpc::PayloadRpcError> {
         // call() doen't really need 'static.
         // &Option<D::Input> can be used instead and was used before,

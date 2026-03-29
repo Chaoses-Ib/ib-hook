@@ -1,10 +1,10 @@
 [package]
 name = "ib-hook"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.94"
 description = "Windows binary and system hooking library."
-keywords = ["hooking", "detours", "windows", "shell"]
+keywords = ["hooking", "detours", "process", "inject", "shell"]
 repository.workspace = true
 license.workspace = true
 
@@ -12,6 +12,7 @@ license.workspace = true
 ## Inline hooking.
 inline = ["dep:slim-detours-sys"]
 
+## `sysinfo` dependency for some extra process utilities.
 sysinfo = ["dep:sysinfo"]
 
 ## The injection part of DLL injection.
@@ -26,12 +27,16 @@ inject-dll-dll = [
     "serde",
 ]
 
+## `serde` support.
 serde = ["dep:serde"]
+
+doc = ["dep:document-features"]
 
 [dependencies]
 bon = "3"
 derive_more = { version = "2", features = ["deref", "deref_mut", "display", "from"] }
 dll-syringe = { version = "0.17", optional = true, features = ["payload-utils", "rpc-core"] }
+document-features = { version = "0.2", optional = true }
 dtor = { version = "0.1", optional = true }
 nt-time = { version = "0.15", default-features = false, features = ["std"] }
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -59,6 +64,10 @@ test-log = { version = "0.2", default-features = false, features = ["trace", "un
 
 [[example]]
 name = "app-dll"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "app-dll-unapply"
 crate-type = ["cdylib"]
 
 [[bin]]

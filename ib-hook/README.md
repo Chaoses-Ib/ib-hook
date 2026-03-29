@@ -23,6 +23,7 @@ See [documentation](https://docs.rs/ib-hook) for details.
 - `no_std` and depend on `Ntdll.dll` only.
 
 ```rust
+// cargo add ib-hook --features inline
 use ib_hook::inline::InlineHook;
 
 extern "system" fn original(x: u32) -> u32 { x + 1 }
@@ -112,6 +113,7 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 
 Apply a function on every existing and new GUI process exactly once:
 ```rust
+// cargo add ib-hook --features sysinfo
 use ib_hook::process::GuiProcessWatcher;
 
 let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
