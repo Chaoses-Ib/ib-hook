@@ -2,7 +2,8 @@
 Inline hooking.
 
 - Supported CPU architectures: x86, x64, ARM64.
-- Support system ABI (`system`, `stdcall`/`win64`) only.
+- Support all common ABIs.
+  - On x86/x64, system ABI (`system`, `stdcall`/`win64`) and System V ABI (`sysv64`) are tested.
 - `no_std` and depend on `Ntdll.dll` only (if `tracing` is not enabled).
 - RAII (drop guard) design.
 
@@ -427,5 +428,36 @@ mod tests {
         hook.disable().unwrap();
         assert!(!hook.is_enabled());
         assert_eq!(original(0x100), 0x101); // back to original
+    }
+
+    /// First arg is RDI instead of RCX.
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn abi_sysv64() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        type FnType = extern "sysv64" fn(u32) -> u32;
+
+        #[inline(never)]
+        extern "sysv64" fn target_inc(x: u32) -> u32 {
+            x + 1
+        }
+
+        #[inline(never)]
+        extern "sysv64" fn detour_dec(x: u32) -> u32 {
+            x - 1
+        }
+
+        let target = target_inc;
+        let detour = detour_dec;
+
+        assert_eq!(target(5), 6); // 5 + 1
+        assert_eq!(detour(5), 4); // 5 - 1
+
+        let hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        assert!(hook.is_enabled());
+
+        assert_eq!(hook.target()(5), 4); // 5 - 1 (redirected to detour)
+        assert_eq!(hook.trampoline()(5), 6); // 5 + 1 (original behavior via trampoline)
+        assert_eq!(hook.detour()(5), 4); // 5 - 1
     }
 }

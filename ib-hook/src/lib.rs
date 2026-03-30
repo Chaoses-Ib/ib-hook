@@ -13,7 +13,6 @@ Features:
 
 ## Inline hooking
 - Supported CPU architectures: x86, x64, ARM64.
-- Support system ABI (`system`, `stdcall`/`win64`) only.
 - `no_std` and depend on `Ntdll.dll` only.
 
 See [`inline`] module for more details. Here is a quick example:
