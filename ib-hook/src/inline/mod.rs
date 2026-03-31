@@ -39,6 +39,59 @@ assert!(!hook.is_enabled());
 assert_eq!(original(0x100), 0x101); // back to original
 ```
 
+## Multiple hooks
+There are mainly four ways to storing multiple hooks:
+- Custom `struct`: Store static hooks.
+  - `no_std`
+- [`Vec<InlineHook<F>>`]:
+  Store dynamic hooks of the same function type.
+- [`HashMap<F, InlineHook<F>>`](std::collections::HashMap):
+  Store dynamic hooks of the same function type, indexed by target function.
+- [`InlineHookMap`]:
+  Store dynamic hooks of different function types, indexed by target function.
+
+However, as ID args aren't supported at the moment,
+dynamic hooks aren't quite useful unless you don't need `trampoline`.
+
+### [`InlineHookMap`] example
+```no_run
+// cargo add ib-hook --features inline
+use ib_hook::inline::{InlineHook, InlineHookMap};
+
+type MyFn = extern "system" fn(u32) -> u32;
+
+extern "system" fn original1(x: u32) -> u32 { x + 1 }
+extern "system" fn original2(x: u32) -> u32 { x + 2 }
+
+extern "system" fn hooked1(x: u32) -> u32 { x + 0o721 }
+extern "system" fn hooked2(x: u32) -> u32 { x + 0o722 }
+
+// Create a collection of hooks
+let mut hooks = InlineHookMap::new();
+hooks.insert::<MyFn>(original1, hooked1);
+// Insert and enable a hook
+hooks.insert::<MyFn>(original2, hooked2).enable().unwrap();
+
+// Enable all hooks at once
+hooks.enable().on_error(|target, e| eprintln!("Target {target:?} failed: {e:?}"));
+
+// Verify hooks are enabled
+assert_eq!(original1(0x100), 721); // redirected to hooked1
+assert_eq!(original2(0x100), 722); // redirected to hooked2
+
+// Disable all hooks at once
+hooks.disable().on_error(|target, e| eprintln!("Target {target:?} failed: {e:?}"));
+
+// Verify hooks are disabled
+assert_eq!(original1(0x100), 0x101); // back to original
+assert_eq!(original2(0x100), 0x102); // back to original
+
+// Access individual hooks by target function
+if let Some(hook) = hooks.get::<MyFn>(original1) {
+    println!("Hook is enabled: {}", hook.is_enabled());
+}
+```
+
 ## Disclaimer
 This is currently implemented as a wrapper of
 [KNSoft.SlimDetours](https://github.com/KNSoft/KNSoft.SlimDetours),
@@ -46,12 +99,21 @@ for type safety and RAII (drop guard).
 
 Ref: https://github.com/Chaoses-Ib/ib-shell/pull/1
 */
-use core::{ffi::c_void, fmt::Debug, mem::transmute_copy};
+use core::{
+    ffi::c_void,
+    fmt::Debug,
+    mem::{self, transmute_copy},
+};
 
 use slim_detours_sys::SlimDetoursInlineHook;
 use windows::core::HRESULT;
 
 use crate::{FnPtr, log::*};
+
+#[cfg(feature = "std")]
+mod map;
+#[cfg(feature = "std")]
+pub use map::InlineHookMap;
 
 /// Type-safe and RAII (drop guard) wrapper of an inline hook.
 ///
@@ -231,6 +293,29 @@ impl<F: FnPtr> InlineHook<F> {
     pub const fn trampoline(&self) -> F {
         self.trampoline
     }
+
+    pub unsafe fn cast<F2: FnPtr>(&self) -> &InlineHook<F2> {
+        unsafe { transmute_copy(&self) }
+    }
+
+    pub unsafe fn cast_mut<F2: FnPtr>(&mut self) -> &mut InlineHook<F2> {
+        unsafe { transmute_copy(&self) }
+    }
+
+    pub unsafe fn cast_into<F2: FnPtr>(self) -> InlineHook<F2> {
+        let hook = InlineHook {
+            target: unsafe { transmute_copy(&self.target) },
+            trampoline: unsafe { transmute_copy(&self.trampoline) },
+            detour: unsafe { transmute_copy(&self.detour) },
+        };
+        // self.trampoline = self.target;
+        mem::forget(self);
+        hook
+    }
+
+    pub unsafe fn into_type_erased(self) -> InlineHook<fn()> {
+        unsafe { self.cast_into::<fn()>() }
+    }
 }
 
 impl<F: FnPtr> Drop for InlineHook<F> {
@@ -243,14 +328,14 @@ impl<F: FnPtr> Drop for InlineHook<F> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::sync::Mutex;
 
     use super::*;
 
     // Static mutex to prevent race conditions in slim_detours_sys tests
     // slim_detours_sys is not thread-safe for concurrent hook operations
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
+    pub static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
     /// Mock target function - represents the function being hooked
     #[inline(never)]
