@@ -13,7 +13,7 @@ Inline hooking.
 
   If you may enable/disable hooks from multiple threads at the same time,
   use a [`std::sync::Mutex`] lock.
-- To init a (`mut`) `static`, [`InlineHook::new_disabled()`] can be used.
+- To init a (`mut`) `static`, [`InlineHook::new()`] can be used.
 
 ## Examples
 ```
@@ -24,7 +24,7 @@ extern "system" fn original(x: u32) -> u32 { x + 1 }
 
 // Hook the function with a detour
 extern "system" fn hooked(x: u32) -> u32 { x + 0o721 }
-let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new(original, hooked).unwrap();
+let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new_enabled(original, hooked).unwrap();
 assert!(hook.is_enabled());
 
 // Now calls to original are redirected to hooked
@@ -179,7 +179,8 @@ impl<F: FnPtr> InlineHook<F> {
     /// ## Returns
     /// `InlineHookGuard` with the hook not yet applied.
     /// Call `enable()` to apply it.
-    pub const fn new_disabled(target: F, detour: F) -> Self {
+    #[doc(alias = "new_disabled")]
+    pub const fn new(target: F, detour: F) -> Self {
         Self {
             target,
             trampoline: target,
@@ -196,7 +197,7 @@ impl<F: FnPtr> InlineHook<F> {
     /// ## Returns
     /// - `Ok(InlineHookGuard)` with the hook created and enabled
     /// - `HRESULT` error if hook creation fails
-    pub fn new(target: F, detour: F) -> Result<Self, HRESULT> {
+    pub fn new_enabled(target: F, detour: F) -> Result<Self, HRESULT> {
         Self::with_enabled(target, detour, true)
     }
 
@@ -359,7 +360,7 @@ pub mod tests {
         extern "system" fn dummy(_x: u32) -> u32 {
             0
         }
-        let hook = InlineHook::<MyFn>::new_disabled(dummy, dummy);
+        let hook = InlineHook::<MyFn>::new(dummy, dummy);
 
         assert_send(&hook);
         assert_sync(&hook);
@@ -369,7 +370,7 @@ pub mod tests {
             unsafe extern "system" fn dummy(_x: *mut c_void) -> u32 {
                 0
             }
-            let hook = InlineHook::<MyFn>::new_disabled(dummy, dummy);
+            let hook = InlineHook::<MyFn>::new(dummy, dummy);
             assert_send(&hook);
             assert_sync(&hook);
         }
@@ -382,7 +383,7 @@ pub mod tests {
         let target: MyFn = inc_target;
         let detour: MyFn = dec_detour;
 
-        let hook = InlineHook::<MyFn>::new_disabled(target, detour);
+        let hook = InlineHook::<MyFn>::new(target, detour);
 
         assert!(hook.is_target(target));
         assert!(!hook.is_target(detour));
@@ -399,7 +400,7 @@ pub mod tests {
         assert_eq!(target(5), 6); // 5 + 1
         assert_eq!(detour(5), 4); // 5 - 1
 
-        let hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
         assert!(hook.is_enabled());
         assert_eq!(hook.target() as *const c_void, target as *const c_void);
         assert_eq!(hook.detour() as *const c_void, detour as *const c_void);
@@ -418,7 +419,7 @@ pub mod tests {
         let target = inc_target;
         let detour = dec_detour;
 
-        let hook = InlineHook::<FnType>::new_disabled(target, detour);
+        let hook = InlineHook::<FnType>::new(target, detour);
         assert!(!hook.is_enabled());
         assert_eq!(hook.target() as *const c_void, target as *const c_void);
         assert_eq!(hook.detour() as *const c_void, detour as *const c_void);
@@ -434,7 +435,7 @@ pub mod tests {
         let target = inc_target;
         let detour = dec_detour;
 
-        let hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
 
         // trampoline holds the true original functionality after hooking
         // Calling through trampoline executes original target behavior
@@ -448,7 +449,7 @@ pub mod tests {
         let target = inc_target;
         let detour = dec_detour;
 
-        let mut hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let mut hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
         assert!(hook.is_enabled());
 
         hook.disable().unwrap();
@@ -465,7 +466,7 @@ pub mod tests {
         let target = inc_target;
         let detour = dec_detour;
 
-        let mut hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let mut hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
         assert!(hook.is_enabled());
 
         hook.toggle().unwrap();
@@ -482,7 +483,7 @@ pub mod tests {
         let target = inc_target;
         let detour = dec_detour;
 
-        let hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
 
         // Verify typed methods return callable function pointers
         assert_eq!(hook.target() as *const c_void, target as *const c_void);
@@ -500,7 +501,8 @@ pub mod tests {
         extern "system" fn hooked(x: u32) -> u32 {
             x + 0o721
         }
-        let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new(original, hooked).unwrap();
+        let mut hook =
+            InlineHook::<extern "system" fn(u32) -> u32>::new_enabled(original, hooked).unwrap();
         assert!(hook.is_enabled());
 
         // Now calls to original are redirected to hooked
@@ -538,7 +540,7 @@ pub mod tests {
         assert_eq!(target(5), 6); // 5 + 1
         assert_eq!(detour(5), 4); // 5 - 1
 
-        let hook = InlineHook::<FnType>::new(target, detour).unwrap();
+        let hook = InlineHook::<FnType>::new_enabled(target, detour).unwrap();
         assert!(hook.is_enabled());
 
         assert_eq!(hook.target()(5), 4); // 5 - 1 (redirected to detour)

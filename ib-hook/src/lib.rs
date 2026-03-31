@@ -24,7 +24,7 @@ extern "system" fn original(x: u32) -> u32 { x + 1 }
 
 // Hook the function with a detour
 extern "system" fn hooked(x: u32) -> u32 { x + 0o721 }
-let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new(original, hooked).unwrap();
+let mut hook = InlineHook::<extern "system" fn(u32) -> u32>::new_enabled(original, hooked).unwrap();
 
 // Now calls to original are redirected to hooked
 assert_eq!(original(0x100), 721); // redirected to hooked: 0x100 + 0o721 = 721
