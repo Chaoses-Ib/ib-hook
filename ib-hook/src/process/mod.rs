@@ -3,7 +3,10 @@ Process utilities.
 */
 #[cfg(feature = "sysinfo")]
 use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{
+    mem::{MaybeUninit, transmute},
+    time::SystemTime,
+};
 
 use derive_more::{Deref, Display};
 use windows::Win32::{
@@ -75,11 +78,12 @@ impl Pid {
         let pid = self.0;
         let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }?;
 
-        let mut start: nt_time::FileTime = Default::default();
+        // let mut start: nt_time::FileTime = Default::default();
+        let mut start: MaybeUninit<SystemTime> = MaybeUninit::uninit();
         let mut x = Default::default();
         unsafe { GetProcessTimes(handle, &mut start as *mut _ as _, &mut x, &mut x, &mut x) }?;
 
-        Ok(start.into())
+        Ok(unsafe { start.assume_init() })
     }
 
     /// Gets the start time of the process.
@@ -88,7 +92,11 @@ impl Pid {
     pub fn get_start_time_or_max(self) -> SystemTime {
         self.get_start_time()
             .inspect_err(|e| debug!(%e, "get_start_time"))
-            .unwrap_or_else(|_| nt_time::FileTime::MAX.into())
+            .unwrap_or_else(|_| {
+                // https://github.com/sorairolake/nt-time/issues/467
+                // nt_time::FileTime::MAX.into()
+                unsafe { transmute(i64::MAX) }
+            })
     }
 }
 
