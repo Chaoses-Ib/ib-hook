@@ -29,20 +29,23 @@ Ref:
 - https://github.com/YousefAliUK/FerroDock/blob/b405832a64c763f073b37d9a42a0690d0c15416b/src/events.rs
 - https://gist.github.com/Aetopia/347e7329158aa2c69df97bdf0b761d6f
 */
-use std::sync::{Once, OnceLock};
+use std::sync::OnceLock;
 
 use windows::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM},
-    UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyWindow,
-        DispatchMessageW, GWLP_USERDATA, GetMessageW, GetWindowLongPtrW, HWND_MESSAGE, MSG,
-        RegisterClassW, RegisterShellHookWindow, RegisterWindowMessageW, SHELLHOOKINFO,
-        SetWindowLongPtrW, TranslateMessage, WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSW,
+    UI::{
+        Controls::WC_STATIC,
+        WindowsAndMessaging::{
+            CreateWindowExW, DefWindowProcW, DeregisterShellHookWindow, DestroyWindow,
+            DispatchMessageW, GWLP_USERDATA, GWLP_WNDPROC, GetMessageW, GetWindowLongPtrW,
+            HWND_MESSAGE, MSG, RegisterShellHookWindow, RegisterWindowMessageW, SHELLHOOKINFO,
+            SetWindowLongPtrW, TranslateMessage, WINDOW_EX_STYLE, WINDOW_STYLE,
+        },
     },
 };
 use windows::core::w;
 
-use crate::{log::*, process::module::Module};
+use crate::log::*;
 
 pub use windows::Win32::UI::WindowsAndMessaging::{
     HSHELL_ACCESSIBILITYSTATE, HSHELL_ACTIVATESHELLWINDOW, HSHELL_APPCOMMAND, HSHELL_ENDTASK,
@@ -214,6 +217,7 @@ impl ShellHook {
                 SHELL_HOOK_MSG.set(shell_msg).ok();
                 */
 
+                /*
                 let class_name = w!("ib_hook::shell");
 
                 let wc = WNDCLASSW {
@@ -229,6 +233,8 @@ impl ShellHook {
                         error!("Failed to register window class");
                     }
                 });
+                */
+                let class_name = WC_STATIC;
 
                 let hwnd = unsafe {
                     CreateWindowExW(
@@ -243,7 +249,8 @@ impl ShellHook {
                         // Message-only window
                         Some(HWND_MESSAGE),
                         None,
-                        Some(wc.hInstance),
+                        // Some(wc.hInstance),
+                        None,
                         None,
                     )
                 }
@@ -261,6 +268,8 @@ impl ShellHook {
                 let callback_ref = callback.as_mut() as *mut _;
                 let callback_ptr = Box::into_raw(Box::new(callback)) as isize;
                 unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, callback_ptr) };
+
+                unsafe { SetWindowLongPtrW(hwnd, GWLP_WNDPROC, window_proc as *const () as isize) };
 
                 if !unsafe { RegisterShellHookWindow(hwnd) }.as_bool() {
                     error!("Failed to register shell hook window");
@@ -318,7 +327,9 @@ fn shell_hook_msg() -> u32 {
     *SHELL_HOOK_MSG.get_or_init(|| unsafe { RegisterWindowMessageW(w!("SHELLHOOK")) })
 }
 
+/*
 static CLASS_REGISTER: Once = Once::new();
+*/
 
 /// The return value should be zero unless the value of nCode is [`HSHELL_APPCOMMAND`]
 /// and the shell procedure handles the [`WM_COMMAND`] message. In this case, the return should be nonzero.

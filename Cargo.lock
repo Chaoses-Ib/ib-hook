@@ -215,7 +215,7 @@ dependencies = [
 
 [[package]]
 name = "ib-hook"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "bon",
  "derive_more",
