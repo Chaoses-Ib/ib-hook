@@ -3,6 +3,7 @@ Process utilities.
 */
 #[cfg(feature = "sysinfo")]
 use std::path::PathBuf;
+#[cfg(feature = "std")]
 use std::{
     mem::{MaybeUninit, transmute},
     time::SystemTime,
@@ -20,9 +21,11 @@ use windows::Win32::{
 
 use crate::log::*;
 
+#[cfg(feature = "std")]
 mod gui;
 pub mod module;
 
+#[cfg(feature = "std")]
 pub use gui::*;
 
 /// Process ID.
@@ -31,6 +34,7 @@ pub use gui::*;
 pub struct Pid(pub u32);
 
 impl Pid {
+    #[cfg(feature = "std")]
     pub fn current() -> Self {
         Self(std::process::id())
     }
@@ -72,6 +76,7 @@ impl TryFrom<HWND> for Pid {
     }
 }
 
+#[cfg(feature = "std")]
 impl Pid {
     /// Gets the start time of the process.
     pub fn get_start_time(self) -> windows::core::Result<SystemTime> {

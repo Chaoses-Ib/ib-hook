@@ -122,6 +122,7 @@ std::thread::sleep(std::time::Duration::from_secs(60));
 */
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "doc", doc = document_features::document_features!())]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
 pub mod inject;
 #[cfg(feature = "inline")]
 pub mod inline;

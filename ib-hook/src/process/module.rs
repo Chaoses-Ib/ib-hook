@@ -1,6 +1,7 @@
 /*!
 Process module (EXE/DLL) utilities.
 */
+#[cfg(feature = "std")]
 use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf};
 
 use derive_more::{Deref, From};
@@ -40,6 +41,7 @@ impl Module {
     /// Get the file path of a module (EXE/DLL).
     ///
     /// [GetModuleFileNameW function (libloaderapi.h)](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew)
+    #[cfg(feature = "std")]
     pub fn get_path(self) -> PathBuf {
         let hmodule = Some(self.0);
 

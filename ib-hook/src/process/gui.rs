@@ -350,6 +350,7 @@ mod tests {
         test_gui_process_watcher_dedup(Duration::from_secs(60));
     }
 
+    #[cfg(feature = "sysinfo")]
     fn test_for_each(d: Duration) {
         let _watcher = GuiProcessWatcher::for_each(|pid| println!("pid: {pid}"))
             .filter_image_path(|path| {
@@ -360,11 +361,13 @@ mod tests {
         thread::sleep(d);
     }
 
+    #[cfg(feature = "sysinfo")]
     #[test]
     fn for_each() {
         test_for_each(Duration::from_secs(1));
     }
 
+    #[cfg(feature = "sysinfo")]
     #[ignore]
     #[test]
     fn for_each_manual() {
